@@ -522,7 +522,12 @@ async function handleAdminApi(request, response, pathname) {
         workbookPath: databasePool ? undefined : workbookPath,
         stack: error.stack,
       });
-      return sendJson(response, 503, { error: 'Could not load bookings from storage. Please try again.' });
+      return sendJson(response, 503, {
+        error: 'Could not load bookings from storage. Please try again.',
+        detail: error.message,
+        code: error.code || 'UNKNOWN',
+        backend: databasePool ? 'postgresql' : 'excel',
+      });
     }
   }
 
