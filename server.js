@@ -90,10 +90,17 @@ function requireSameOrigin(request) {
   }
 }
 
+function localDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function parseDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isFinite(date.getTime()) && localDateString(date) === value;
 }
 
 function validateBooking(value) {
@@ -102,7 +109,7 @@ function validateBooking(value) {
   const mobileNumber = typeof value.mobileNumber === 'string' ? value.mobileNumber.trim() : '';
   const digits = mobileNumber.replace(/\D/g, '');
   const players = Number(value.players);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateString();
 
   if (playerName.length < 1 || playerName.length > 60) return null;
   if (digits.length < 7 || digits.length > 15 || mobileNumber.length > 24) return null;
@@ -290,7 +297,12 @@ async function handleBooking(request, response) {
     await appendBooking(booking);
     return sendJson(response, 201, { ok: true });
   } catch (error) {
-    console.error('Booking workbook write failed:', error.message);
+    console.error('Booking workbook write failed:', {
+      message: error.message,
+      code: error.code || 'UNKNOWN',
+      workbookPath,
+      stack: error.stack,
+    });
     return sendJson(response, 503, { error: 'We could not save your booking. Please contact the academy.' });
   }
 }
