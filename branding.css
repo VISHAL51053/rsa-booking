@@ -1,0 +1,13 @@
+.brand-name {
+  font: 700 13px/1.08 var(--display);
+}
+
+@media (max-width: 390px) {
+  .brand {
+    gap: 7px;
+  }
+
+  .brand-name {
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,161 @@
+.plans-section {
+  margin: -11px 0 25px;
+}
+
+.plans-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.plans-heading h2 {
+  margin: 0;
+  color: #435247;
+  font: 600 13px var(--display);
+}
+
+.plans-heading > span {
+  color: #8b978e;
+  font-size: 10px;
+}
+
+.plan-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.plan-option {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.plan-option > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.plan-card {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 13px;
+  border: 1px solid #e0e7df;
+  border-radius: 3px;
+  background: #fff;
+  transition: border-color .16s, background .16s, box-shadow .16s;
+}
+
+.plan-option:hover .plan-card {
+  border-color: #9bbfa2;
+}
+
+.plan-option > input:checked + .plan-card {
+  border-color: #6ba879;
+  background: #f4f9f2;
+  box-shadow: inset 0 0 0 1px #6ba879;
+}
+
+.plan-option > input:focus-visible + .plan-card {
+  outline: 3px solid #9ac94f;
+  outline-offset: 3px;
+}
+
+.plan-copy,
+.plan-price {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.plan-copy strong {
+  color: #334438;
+  font: 600 12px var(--display);
+}
+
+.plan-copy small,
+.plan-price small {
+  color: #87938a;
+  font-size: 9px;
+}
+
+.plan-price {
+  justify-items: end;
+  color: #24563f;
+  font: 600 15px var(--display);
+  white-space: nowrap;
+}
+
+.fee-cell {
+  color: #3e6549 !important;
+  font: 600 11px var(--display) !important;
+}
+
+.plan-cell {
+  color: #526b58 !important;
+  font-size: 10px !important;
+  font-weight: 600;
+}
+
+@media (max-width: 620px) {
+  .plans-section {
+    margin: -7px 0 20px;
+  }
+
+  .plan-options {
+    gap: 6px;
+  }
+
+  .plan-card {
+    min-height: 76px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .plan-price {
+    justify-items: start;
+    gap: 1px;
+    font-size: 14px;
+  }
+
+  .table-wrap td:nth-child(4)::before {
+    content: 'Plan';
+  }
+
+  .table-wrap td:nth-child(5)::before {
+    content: 'Players';
+  }
+
+  .table-wrap td:nth-child(6) {
+    grid-column: auto;
+    display: grid;
+    padding: 9px 10px;
+  }
+
+  .table-wrap td:nth-child(6)::before {
+    content: 'Fee';
+  }
+
+  .table-wrap td:nth-child(7)::before {
+    content: 'Mobile';
+  }
+
+  .table-wrap td:nth-child(8) {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    padding: 2px 8px;
+  }
+}

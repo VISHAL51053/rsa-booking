@@ -1,0 +1,21 @@
+{
+  "name": "rainbow-sports-academy-bookings",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public court booking form with private Excel admin dashboard",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.7",
+    "exceljs": "^4.4.0"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

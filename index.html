@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8f4">
+  <title>Rainbow Sports Academy | Bookings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="branding.css">
+  <link rel="stylesheet" href="membership.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Academy branding">
+      <a class="brand" href="#top" aria-label="Rainbow Sports Academy home"><span class="brand-mark" aria-hidden="true"><i></i></span><span class="brand-name">Rainbow<br>Sports Academy</span></a>
+      <div class="sidebar-bottom"><div class="side-rule"></div><p class="side-label">YOUR VENUE</p><p class="venue"><span class="venue-dot"></span>Rainbow Sports Academy</p><p class="venue-tagline">A better game starts here.</p></div>
+    </aside>
+
+    <main id="top">
+      <header class="topbar"><div class="breadcrumb"><strong>Player booking</strong></div><div class="top-actions"><span class="open-indicator"><i></i>2 courts</span></div></header>
+      <div class="page-content">
+        <section class="page-heading" aria-labelledby="page-title"><div><p class="eyebrow"><i></i>RAINBOW SPORTS ACADEMY</p><h1 id="page-title">Make room to<br class="mobile-break"> play<span>.</span></h1><p class="subtitle">Choose your membership and reserve a court.</p></div><div class="date-stamp"><span>TODAY</span><strong id="today-label"></strong></div></section>
+
+        <section class="plans-section" aria-labelledby="membership-title">
+          <div class="plans-heading"><h2 id="membership-title">Membership options</h2><span>Choose a plan for your booking</span></div>
+          <fieldset class="plan-options"><legend class="visually-hidden">Membership plan</legend>
+            <label class="plan-option"><input type="radio" name="membership" value="One-day" form="booking-form" checked><span class="plan-card"><span class="plan-copy"><strong>One-day</strong><small>1.5-2 hour session</small></span><span class="plan-price">₹100<small>per person</small></span></span></label>
+            <label class="plan-option"><input type="radio" name="membership" value="Weekly" form="booking-form"><span class="plan-card"><span class="plan-copy"><strong>Weekly</strong><small>Weekly membership</small></span><span class="plan-price">₹500<small>per week</small></span></span></label>
+            <label class="plan-option"><input type="radio" name="membership" value="Monthly" form="booking-form"><span class="plan-card"><span class="plan-copy"><strong>Monthly</strong><small>Monthly membership</small></span><span class="plan-price">₹1,000<small>per month</small></span></span></label>
+          </fieldset>
+        </section>
+
+        <section class="booking-layout" id="new-booking" aria-label="Create a court booking">
+          <div class="booking-panel">
+            <div class="section-heading"><h2><span>01</span>New booking</h2><small>* Required fields</small></div>
+            <form id="booking-form" novalidate>
+              <div class="form-grid">
+                <div class="visually-hidden" aria-hidden="true"><input id="website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+                <label class="field wide" for="player-name"><span>Player name <b>*</b></span><input id="player-name" name="name" type="text" placeholder="e.g. Alex Morgan" autocomplete="name" maxlength="60" required><small class="field-error" id="name-error"></small></label>
+                <label class="field" for="mobile-number"><span>Mobile number <b>*</b></span><input id="mobile-number" name="mobile" type="tel" placeholder="+1 555 012 3456" autocomplete="tel" maxlength="24" required><small class="field-error" id="mobile-error"></small></label>
+                <label class="field" for="play-date"><span>Date of play <b>*</b></span><input id="play-date" name="date" type="date" required><small class="field-error" id="date-error"></small></label>
+                <fieldset class="field wide court-field"><legend>Choose a court <b>*</b></legend><div class="court-options">
+                  <label class="court-option"><input type="radio" name="court" value="Court 1" checked><span class="court-choice"><span class="court-top">Court 01<span class="radio-dot"></span></span><span class="court-diagram"><i></i></span><span class="court-bottom">Badminton court <span>Select</span></span></span></label>
+                  <label class="court-option"><input type="radio" name="court" value="Court 2"><span class="court-choice"><span class="court-top">Court 02<span class="radio-dot"></span></span><span class="court-diagram"><i></i></span><span class="court-bottom">Badminton court <span>Select</span></span></span></label>
+                </div></fieldset>
+                <div class="field wide player-count-field"><div><label for="player-count">Number of players <b>*</b></label><small>How many are joining?</small></div><div class="stepper"><button type="button" id="decrease-players" aria-label="Remove one player">−</button><input id="player-count" name="players" type="number" min="1" max="20" value="2" inputmode="numeric" required><button type="button" id="increase-players" aria-label="Add one player">+</button></div><small class="field-error" id="players-error"></small></div>
+              </div>
+              <div class="form-footer"><p><i>i</i>Your booking details are sent to the academy.</p><button class="submit-button" type="submit">Confirm booking <span>↗</span></button></div>
+            </form>
+          </div>
+          <aside class="club-aside"><div class="aside-label">READY WHEN YOU ARE <span>✳</span></div><h2>Good games<br>start with a<br><em>good plan.</em></h2><p>Pick your court, bring your people, and we'll take care of the rest.</p><div class="court-art" aria-hidden="true"><span class="shuttle"></span></div><div class="aside-footer"><i></i>Court one <span>/</span> Court two</div></aside>
+        </section>
+
+        <footer class="page-footer"><span>RAINBOW SPORTS ACADEMY</span><span>Make it a good one.</span></footer>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"><span>✓</span><div id="toast-message">Booking confirmed.</div></div>
+</body>
+</html>

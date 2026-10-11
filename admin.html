@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f8f4">
+  <title>Admin | Rainbow Sports Academy</title>
+  <link rel="stylesheet" href="admin.css">
+  <script src="admin.js" defer></script>
+</head>
+<body>
+  <header class="admin-topbar">
+    <a class="admin-brand" href="/" aria-label="Rainbow Sports Academy player booking page"><span class="admin-brand-mark" aria-hidden="true">R</span><span>RAINBOW SPORTS ACADEMY<small>ADMINISTRATION</small></span></a>
+    <a class="player-link" href="/">Player booking <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main class="admin-main">
+    <section id="login-view" class="login-view" hidden>
+      <div class="login-accent" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p class="admin-eyebrow">PRIVATE ADMIN AREA</p>
+      <h1>Bookings,<br>kept in good hands.</h1>
+      <p class="login-copy">Enter your academy admin username and password to view booking records.</p>
+      <p class="notice" id="login-message" role="status" hidden></p>
+      <form class="admin-login-form" id="admin-login-form" autocomplete="on">
+        <label for="admin-username">Username</label>
+        <input id="admin-username" name="username" type="text" value="admin" autocomplete="username" maxlength="80" required>
+        <label for="admin-password">Password</label>
+        <input id="admin-password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+        <button class="primary-button" id="login-button" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+      </form>
+      <p class="login-footnote">Players do not need an account. Admin credentials are managed privately by the academy.</p>
+    </section>
+
+    <section id="dashboard-view" class="dashboard-view" hidden>
+      <div class="dashboard-heading">
+        <div><p class="admin-eyebrow">RAINBOW SPORTS ACADEMY <span>/</span> PRIVATE DASHBOARD</p><h1>Bookings</h1><p class="dashboard-subtitle">Player reservations from your private Excel workbook.</p></div>
+        <div class="account-controls"><span class="signed-in" id="signed-in-username"></span><button class="icon-button" id="refresh-button" type="button" title="Refresh bookings" aria-label="Refresh bookings">↻</button><button class="text-button" id="workbook-button" type="button">Download Excel</button><button class="text-button" id="export-button" type="button">Export CSV</button><button class="text-button" id="logout-button" type="button">Sign out</button></div>
+      </div>
+
+      <div class="summary-grid" aria-label="Booking summary">
+        <article><span>Total bookings</span><strong id="total-bookings">0</strong><small>All reservations</small></article>
+        <article><span>Upcoming bookings</span><strong id="upcoming-bookings">0</strong><small>Today and future</small></article>
+        <article><span>Players booked</span><strong id="total-players">0</strong><small>Across all reservations</small></article>
+        <article><span>Recorded fees</span><strong id="total-fees">₹0</strong><small>From membership selections</small></article>
+      </div>
+
+      <div class="list-heading"><div><h2>Reservation register</h2><span id="visible-count">0 records</span></div><div class="list-tools"><label class="search-field" for="admin-search"><span aria-hidden="true">⌕</span><input id="admin-search" type="search" placeholder="Search name, mobile, court or plan"></label><select id="date-filter" aria-label="Filter bookings by date"><option value="all">All dates</option><option value="upcoming">Upcoming</option><option value="past">Past</option></select></div></div>
+      <div class="table-frame"><table class="booking-table"><thead><tr><th>PLAYER</th><th>MOBILE</th><th>DATE OF PLAY</th><th>COURT</th><th>MEMBERSHIP</th><th>PLAYERS</th><th>FEE</th></tr></thead><tbody id="admin-booking-rows"></tbody></table><div class="table-state" id="table-state" role="status"><span class="loading-mark" aria-hidden="true"></span><p>Loading bookings…</p></div></div>
+      <p class="privacy-note"><span aria-hidden="true">●</span> Private admin view · Workbook stored on the server</p>
+    </section>
+  </main>
+</body>
+</html>
