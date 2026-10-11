@@ -3,9 +3,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const ExcelJS = require('exceljs');
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+if (types && typeof types.setTypeParser === 'function') {
+  // Parse PostgreSQL DATE (OID 1082) directly as YYYY-MM-DD string to avoid timezone shifting
+  types.setTypeParser(1082, (val) => val);
+}
 
 require('dotenv').config({ quiet: true });
+
+function getDatabaseSsl(url) {
+  if (!url) return undefined;
+  if (url.includes('localhost') || url.includes('127.0.0.1')) return undefined;
+  return { rejectUnauthorized: false };
+}
 
 const root = __dirname;
 const port = Number(process.env.PORT) || 3000;
@@ -17,7 +27,7 @@ const loginConfigured = Boolean(adminUsername && adminPasswordHash);
 const databaseUrl = process.env.DATABASE_URL || '';
 const databasePool = databaseUrl ? new Pool({
   connectionString: databaseUrl,
-  ssl: databaseUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+  ssl: getDatabaseSsl(databaseUrl),
   connectionTimeoutMillis: 10_000,
   idleTimeoutMillis: 30_000,
   max: 5,
@@ -141,6 +151,14 @@ function validateBooking(value) {
   };
 }
 
+function getClientIp(request) {
+  const forwarded = request.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  return request.socket?.remoteAddress || 'unknown';
+}
+
 function allowedByRateLimit(address, limit = requestLimit, windowMs = requestWindowMs) {
   const now = Date.now();
   const recent = (requestsByAddress.get(address) || []).filter((timestamp) => now - timestamp < windowMs);
@@ -150,6 +168,15 @@ function allowedByRateLimit(address, limit = requestLimit, windowMs = requestWin
   }
   recent.push(now);
   requestsByAddress.set(address, recent);
+
+  // Periodic cleanup if map grows
+  if (requestsByAddress.size > 200) {
+    for (const [key, timestamps] of requestsByAddress.entries()) {
+      const active = timestamps.filter((t) => now - t < 15 * 60_000);
+      if (active.length === 0) requestsByAddress.delete(key);
+      else requestsByAddress.set(key, active);
+    }
+  }
   return true;
 }
 
@@ -162,22 +189,45 @@ function withWorkbookLock(operation) {
 async function ensureDatabaseSchema() {
   if (!databasePool) return;
   if (!databaseSchemaPromise) {
-    databaseSchemaPromise = databasePool.query(`
-      CREATE TABLE IF NOT EXISTS public.bookings (
-        id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        submitted_at TIMESTAMPTZ NOT NULL,
-        player_name TEXT NOT NULL,
-        mobile_number TEXT NOT NULL,
-        play_date DATE NOT NULL,
-        court TEXT NOT NULL CHECK (court IN ('Court 1', 'Court 2')),
-        membership TEXT NOT NULL CHECK (membership IN ('One-day', 'Weekly', 'Monthly')),
-        players INTEGER NOT NULL CHECK (players BETWEEN 1 AND 20),
-        fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0)
-      )
-    `).then(() => databasePool.query(`
-      ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
-      REVOKE ALL ON TABLE public.bookings FROM anon, authenticated;
-    `)).catch((error) => {
+    databaseSchemaPromise = (async () => {
+      await databasePool.query(`
+        CREATE TABLE IF NOT EXISTS public.bookings (
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          submitted_at TIMESTAMPTZ NOT NULL,
+          player_name TEXT NOT NULL,
+          mobile_number TEXT NOT NULL,
+          play_date DATE NOT NULL,
+          court TEXT NOT NULL CHECK (court IN ('Court 1', 'Court 2')),
+          membership TEXT NOT NULL CHECK (membership IN ('One-day', 'Weekly', 'Monthly')),
+          players INTEGER NOT NULL CHECK (players BETWEEN 1 AND 20),
+          fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0)
+        );
+      `);
+      try {
+        await databasePool.query(`
+          DO $$
+          BEGIN
+            ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              REVOKE ALL ON TABLE public.bookings FROM anon;
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              REVOKE ALL ON TABLE public.bookings FROM authenticated;
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgres') THEN
+              GRANT ALL ON TABLE public.bookings TO postgres;
+            END IF;
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              GRANT ALL ON TABLE public.bookings TO service_role;
+            END IF;
+          EXCEPTION WHEN OTHERS THEN
+            NULL;
+          END $$;
+        `);
+      } catch (rlsError) {
+        console.warn('RLS configuration warning (non-fatal):', rlsError.message);
+      }
+    })().catch((error) => {
       databaseSchemaPromise = null;
       throw error;
     });
@@ -218,7 +268,15 @@ async function openBookingsWorkbook() {
   }
 
   if (!table) {
-    if (worksheet.rowCount > 0) throw new Error('Bookings worksheet exists but has no Bookings table.');
+    const existingRows = [];
+    if (worksheet.rowCount > 1) {
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber < 2) return;
+        const values = workbookHeaders.map((_, index) => row.getCell(index + 1).value);
+        if (values.some((value) => value !== null && value !== undefined && value !== '')) existingRows.push(values);
+      });
+    }
+    try { worksheet.removeTable('Bookings'); } catch {}
     table = worksheet.addTable({
       name: 'Bookings',
       ref: 'A1',
@@ -226,7 +284,7 @@ async function openBookingsWorkbook() {
       totalsRow: false,
       style: { theme: 'TableStyleMedium4', showRowStripes: true },
       columns: workbookHeaders.map((name) => ({ name })),
-      rows: [],
+      rows: existingRows,
     });
     worksheet.views = [{ state: 'frozen', ySplit: 1 }];
     worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -273,6 +331,22 @@ function excelCell(row, column) {
   return value ?? '';
 }
 
+function normalizeDateString(dateVal) {
+  if (!dateVal) return '';
+  if (typeof dateVal === 'string') {
+    // If it's already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateVal)) return dateVal.slice(0, 10);
+  }
+  const parsed = new Date(dateVal);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const d = String(parsed.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(dateVal).slice(0, 10);
+}
+
 async function readBookings() {
   if (databasePool) {
     await ensureDatabaseSchema();
@@ -286,7 +360,7 @@ async function readBookings() {
       submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
       playerName: row.player_name,
       mobileNumber: row.mobile_number,
-      playDate: String(row.play_date).slice(0, 10),
+      playDate: normalizeDateString(row.play_date),
       court: row.court,
       membership: row.membership,
       players: Number(row.players),
@@ -366,7 +440,7 @@ async function handleBooking(request, response) {
   }
   if (!requireSameOrigin(request)) return sendJson(response, 403, { error: 'Request not allowed.' });
 
-  const address = request.socket.remoteAddress || 'unknown';
+  const address = getClientIp(request);
   if (!allowedByRateLimit(address)) return sendJson(response, 429, { error: 'Too many attempts. Please wait a minute and try again.' });
 
   let payload;
@@ -408,7 +482,7 @@ async function handleAdminApi(request, response, pathname) {
   if (pathname === '/api/admin/login' && request.method === 'POST') {
     if (!requireSameOrigin(request)) return sendJson(response, 403, { error: 'Request not allowed.' });
     if (!loginConfigured) return sendJson(response, 503, { error: 'Admin login is not configured. Contact the academy administrator.' });
-    const address = request.socket.remoteAddress || 'unknown';
+    const address = getClientIp(request);
     if (!allowedByRateLimit(`login:${address}`, 5, 15 * 60_000)) return sendJson(response, 429, { error: 'Too many sign-in attempts. Wait 15 minutes and try again.' });
 
     let credentials;

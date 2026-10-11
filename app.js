@@ -59,14 +59,16 @@ form.addEventListener('submit', async (event) => {
   }
 
   const button = form.querySelector('.submit-button');
+  const courtSelected = form.querySelector('input[name="court"]:checked')?.value || 'Court 1';
+  const membershipSelected = document.querySelector('input[name="membership"]:checked')?.value || 'One-day';
   const booking = {
     playerName: nameInput.value.trim(),
     mobileNumber: mobileInput.value.trim(),
     playDate: dateInput.value,
-    court: form.querySelector('input[name="court"]:checked').value,
-    membership: form.elements.namedItem('membership').value,
+    court: courtSelected,
+    membership: membershipSelected,
     players: Number(playersInput.value),
-    website: document.querySelector('#website').value,
+    website: document.querySelector('#website')?.value || '',
   };
 
   button.disabled = true;
@@ -83,6 +85,8 @@ form.addEventListener('submit', async (event) => {
 
     const bookingName = booking.playerName;
     form.reset();
+    const defaultMembership = document.querySelector('input[name="membership"][value="One-day"]');
+    if (defaultMembership) defaultMembership.checked = true;
     dateInput.value = todayString();
     playersInput.value = '2';
     showToast(`Booking received for ${bookingName}.`);

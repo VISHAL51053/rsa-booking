@@ -17,15 +17,21 @@ function escapeCsv(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function setTableMessage(message, isError = false) {
+function setTableMessage(message, state = 'empty') {
   tableState.hidden = false;
-  tableState.classList.toggle('is-error', isError);
+  tableState.classList.toggle('is-error', state === 'error');
+  const loadingMark = tableState.querySelector('.loading-mark');
+  if (loadingMark) {
+    loadingMark.style.display = state === 'loading' ? 'block' : 'none';
+  }
   tableState.querySelector('p').textContent = message;
 }
 
 function formattedDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const [year, month, day] = value.split('-').map(Number);
+  if (!value) return '';
+  const str = String(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return String(value);
+  const [year, month, day] = str.split('-').map(Number);
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
@@ -40,9 +46,10 @@ function renderRows() {
   const today = localDateString();
   const query = searchInput.value.trim().toLocaleLowerCase();
   const visible = bookings.filter((booking) => {
-    if (dateFilter.value === 'upcoming' && booking.playDate < today) return false;
-    if (dateFilter.value === 'past' && booking.playDate >= today) return false;
-    return `${booking.playerName} ${booking.mobileNumber} ${booking.court} ${booking.membership} ${booking.playDate}`.toLocaleLowerCase().includes(query);
+    const playDate = String(booking.playDate || '').slice(0, 10);
+    if (dateFilter.value === 'upcoming' && playDate < today) return false;
+    if (dateFilter.value === 'past' && playDate >= today) return false;
+    return `${booking.playerName || ''} ${booking.mobileNumber || ''} ${booking.court || ''} ${booking.membership || ''} ${playDate}`.toLocaleLowerCase().includes(query);
   });
 
   tableBody.replaceChildren(...visible.map((booking) => {
@@ -72,21 +79,21 @@ function renderRows() {
   document.querySelector('#visible-count').textContent = `${visible.length} ${visible.length === 1 ? 'record' : 'records'}`;
   tableState.hidden = visible.length > 0;
   if (visible.length === 0) {
-    setTableMessage(bookings.length ? 'No bookings match these filters.' : 'No bookings have been submitted yet.');
+    setTableMessage(bookings.length ? 'No bookings match these filters.' : 'No bookings have been submitted yet.', 'empty');
   }
 }
 
 function renderSummary() {
   const today = localDateString();
   document.querySelector('#total-bookings').textContent = String(bookings.length);
-  document.querySelector('#upcoming-bookings').textContent = String(bookings.filter((booking) => booking.playDate >= today).length);
+  document.querySelector('#upcoming-bookings').textContent = String(bookings.filter((booking) => String(booking.playDate || '').slice(0, 10) >= today).length);
   document.querySelector('#total-players').textContent = String(bookings.reduce((sum, booking) => sum + booking.players, 0));
   const fees = bookings.reduce((sum, booking) => sum + booking.feeINR, 0);
   document.querySelector('#total-fees').textContent = `₹${new Intl.NumberFormat('en-IN').format(fees)}`;
 }
 
 async function loadBookings() {
-  setTableMessage('Loading bookings…');
+  setTableMessage('Loading bookings…', 'loading');
   try {
     const response = await fetch('/api/admin/bookings', { headers: { accept: 'application/json' }, cache: 'no-store' });
     if (response.status === 401) {
@@ -95,11 +102,11 @@ async function loadBookings() {
     }
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Could not load bookings.');
-    bookings = result.rows;
+    bookings = Array.isArray(result.rows) ? result.rows : [];
     renderSummary();
     renderRows();
   } catch (error) {
-    setTableMessage(error.message || 'Could not load bookings from storage.', true);
+    setTableMessage(error.message || 'Could not load bookings from storage.', 'error');
   }
 }
 
@@ -201,4 +208,19 @@ document.querySelector('#logout-button').addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST' });
   window.location.assign('/admin');
 });
+
+// Automatically poll for new bookings every 15 seconds when active
+setInterval(() => {
+  if (dashboardView && !dashboardView.hidden) {
+    loadBookings();
+  }
+}, 15_000);
+
+// Refresh when admin switches back to the tab
+window.addEventListener('focus', () => {
+  if (dashboardView && !dashboardView.hidden) {
+    loadBookings();
+  }
+});
+
 initializeAdmin();
