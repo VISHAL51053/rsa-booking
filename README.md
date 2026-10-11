@@ -5,7 +5,7 @@ The app uses one deployment with two routes:
 - `/` is the public player booking form. Players do not log in.
 - `/admin` is the private dashboard. It uses the configured username/password and is the only route that can read or download the workbook.
 
-The Node server writes bookings directly to an Excel workbook at `BOOKINGS_WORKBOOK_PATH` (default `data/bookings.xlsx`). The workbook is not in the public static-file list. Admins can inspect the rows in the dashboard or download the `.xlsx` file after signing in.
+When `DATABASE_URL` is configured, the Node server stores bookings in Supabase PostgreSQL. Without it, local development falls back to an Excel workbook at `BOOKINGS_WORKBOOK_PATH` (default `data/bookings.xlsx`). The workbook is not in the public static-file list. Admins can inspect bookings in the dashboard or download an `.xlsx` export after signing in.
 
 ## Local setup
 
@@ -24,23 +24,33 @@ npm install
 npm start
 ```
 
-Open `http://localhost:3000/` for players and `http://localhost:3000/admin` for admins. On the first valid booking, the server creates an Excel workbook with a `Bookings` table containing these columns: `SubmittedAt`, `PlayerName`, `MobileNumber`, `PlayDate`, `Court`, `Membership`, `Players`, `FeeINR`.
+Open `http://localhost:3000/` for players and `http://localhost:3000/admin` for admins. If `DATABASE_URL` is absent, the first valid booking creates a local Excel workbook with a `Bookings` table containing these columns: `SubmittedAt`, `PlayerName`, `MobileNumber`, `PlayDate`, `Court`, `Membership`, `Players`, `FeeINR`.
 
 ## Excel storage and access
 
-Player submissions are validated on the server before they are appended to the workbook. The admin login uses a server-side scrypt password hash and a short-lived HttpOnly session cookie. Login attempts are rate-limited. The public page has no API to list, search, or download bookings.
+Player submissions are validated on the server before they are stored. The admin login uses a server-side scrypt password hash and a short-lived HttpOnly session cookie. Login attempts are rate-limited. The public page has no API to list, search, or download bookings.
 
 The admin dashboard shows booking totals and rows, supports search and date filters, exports CSV, and has a **Download Excel** action. Both booking reads and workbook downloads require an authenticated admin session.
 
+### Use Supabase storage on Render Free
+
+Render's free filesystem is temporary and cannot attach a persistent disk. To keep bookings through redeploys without upgrading Render, use a Supabase PostgreSQL project:
+
+1. Create a project in Supabase. In the project dashboard, click **Connect** and select **Session pooler**. Render runs this app as a persistent Node service; Supabase recommends Session pooler when a persistent backend needs IPv4 connectivity. Copy the URI Supabase provides rather than constructing the host or username yourself. Make sure the password is URL-encoded if it contains reserved URL characters.
+2. In Render, open the `rsa-booking` web service, then **Environment → Add Environment Variable**.
+3. Set key `DATABASE_URL` and value to the full Supabase Session pooler connection string. Keep it private. Do not use the Supabase `anon` key here.
+4. Save changes and wait for Render to redeploy. On the first database request, the app creates the `public.bookings` table automatically, enables Row Level Security, and revokes table access from Supabase's `anon` and `authenticated` API roles. Only the private server database connection can access booking rows.
+5. Submit a test booking, then sign in at `/admin` to confirm it appears. The admin **Download Excel** button exports the database rows as an `.xlsx` file.
+
+When `DATABASE_URL` is present, PostgreSQL is the source of truth and the local workbook is not used. Without `DATABASE_URL`, local development falls back to `BOOKINGS_WORKBOOK_PATH`. Supabase free-tier quotas and inactivity/pause policies may apply; review its current plan limits and keep regular backups.
+
 ## Deploy
 
-Deploy the Node app behind HTTPS. Keep `.env` or the equivalent hosting environment settings private. Use the public homepage URL (`https://your-host/`) for the court QR code and give admins `https://your-host/admin`.
+Deploy the Node app behind HTTPS. Keep `.env` or equivalent hosting environment settings private. Use the public homepage URL (`https://your-host/`) for the court QR code and give admins `https://your-host/admin`.
 
-The workbook is stored on the server filesystem at `BOOKINGS_WORKBOOK_PATH`. For hosting, point this setting to a persistent disk or mounted volume; ephemeral deployment storage can be lost when the app restarts or redeploys. Back up the workbook regularly. Run a single server instance unless a shared session store and coordinated workbook storage are added.
+For Render Free, configure `DATABASE_URL` as described above. For a paid Render service with a persistent disk, you can instead set `BOOKINGS_WORKBOOK_PATH` to the mounted disk path. Never rely on the default ephemeral filesystem for live bookings. Run a single server instance unless you use a shared session store and coordinated storage.
 
-### Render
-
-The repository includes `render.yaml` for a Node web service, a 1 GB persistent disk at `/var/data`, and `BOOKINGS_WORKBOOK_PATH=/var/data/bookings.xlsx`. It uses Render's paid `0.5c-512mb` plan because persistent disks require a paid instance. To sync it, sign in to Render, create a Blueprint Instance from this GitHub repository, and enter a private `ADMIN_PASSWORD` when prompted. Render matches Blueprint services by name: this file uses `rsa-booking`. If your current service has a different name, change `name` in `render.yaml` to its exact service name before syncing; otherwise Render may create a separate service. The Blueprint leaves the password out of GitHub. If you prefer manual setup, set `ADMIN_USERNAME=admin`, your private `ADMIN_PASSWORD`, and `BOOKINGS_WORKBOOK_PATH=/var/data/bookings.xlsx` in the existing service's Environment settings; add a persistent disk mounted at `/var/data`, then save and redeploy.
+The repository includes `render.yaml` for a free Node web service and prompts for private `ADMIN_PASSWORD` and `DATABASE_URL` values during initial Blueprint creation. It does not attach a paid disk; Supabase is the persistent store. If syncing it to an existing service, confirm the service name matches to avoid creating a duplicate. Render only prompts for `sync: false` secrets during the initial Blueprint creation; add or change secrets manually in the existing service's Environment settings.
 
 The included anonymous booking form has server validation, a hidden bot trap, and basic rate limiting. Add hosting-level WAF or CAPTCHA controls if abuse becomes an issue.
 

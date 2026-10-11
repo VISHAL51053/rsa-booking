@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const ExcelJS = require('exceljs');
+const { Pool } = require('pg');
 
 require('dotenv').config({ quiet: true });
 
@@ -13,6 +14,14 @@ const adminPassword = process.env.ADMIN_PASSWORD || '';
 const adminPasswordSalt = crypto.randomBytes(16);
 const adminPasswordHash = adminPassword.length >= 12 ? crypto.scryptSync(adminPassword, adminPasswordSalt, 64) : null;
 const loginConfigured = Boolean(adminUsername && adminPasswordHash);
+const databaseUrl = process.env.DATABASE_URL || '';
+const databasePool = databaseUrl ? new Pool({
+  connectionString: databaseUrl,
+  ssl: databaseUrl.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+  connectionTimeoutMillis: 10_000,
+  idleTimeoutMillis: 30_000,
+  max: 5,
+}) : null;
 const workbookPath = path.resolve(root, process.env.BOOKINGS_WORKBOOK_PATH || 'data/bookings.xlsx');
 const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'Court', 'Membership', 'Players', 'FeeINR'];
 const rates = { 'One-day': 100, Weekly: 500, Monthly: 1000 };
@@ -35,6 +44,7 @@ const requestWindowMs = 60_000;
 const sessionLifetimeMs = 8 * 60 * 60 * 1000;
 const cookieName = 'rsa_admin';
 let workbookQueue = Promise.resolve();
+let databaseSchemaPromise;
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -149,6 +159,32 @@ function withWorkbookLock(operation) {
   return next;
 }
 
+async function ensureDatabaseSchema() {
+  if (!databasePool) return;
+  if (!databaseSchemaPromise) {
+    databaseSchemaPromise = databasePool.query(`
+      CREATE TABLE IF NOT EXISTS public.bookings (
+        id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        submitted_at TIMESTAMPTZ NOT NULL,
+        player_name TEXT NOT NULL,
+        mobile_number TEXT NOT NULL,
+        play_date DATE NOT NULL,
+        court TEXT NOT NULL CHECK (court IN ('Court 1', 'Court 2')),
+        membership TEXT NOT NULL CHECK (membership IN ('One-day', 'Weekly', 'Monthly')),
+        players INTEGER NOT NULL CHECK (players BETWEEN 1 AND 20),
+        fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0)
+      )
+    `).then(() => databasePool.query(`
+      ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+      REVOKE ALL ON TABLE public.bookings FROM anon, authenticated;
+    `)).catch((error) => {
+      databaseSchemaPromise = null;
+      throw error;
+    });
+  }
+  await databaseSchemaPromise;
+}
+
 async function openBookingsWorkbook() {
   await fs.promises.mkdir(path.dirname(workbookPath), { recursive: true });
   const workbook = new ExcelJS.Workbook();
@@ -201,6 +237,18 @@ async function openBookingsWorkbook() {
 }
 
 async function appendBooking(booking) {
+  if (databasePool) {
+    await ensureDatabaseSchema();
+    await databasePool.query(
+      `INSERT INTO public.bookings
+        (submitted_at, player_name, mobile_number, play_date, court, membership, players, fee_inr)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [booking.submittedAt, booking.playerName, booking.mobileNumber, booking.playDate,
+        booking.court, booking.membership, booking.players, booking.feeINR],
+    );
+    return;
+  }
+
   return withWorkbookLock(async () => {
     const { workbook, table } = await openBookingsWorkbook();
     table.addRow([
@@ -226,6 +274,26 @@ function excelCell(row, column) {
 }
 
 async function readBookings() {
+  if (databasePool) {
+    await ensureDatabaseSchema();
+    const result = await databasePool.query(
+      `SELECT id, submitted_at, player_name, mobile_number, play_date, court, membership, players, fee_inr
+       FROM public.bookings
+       ORDER BY submitted_at DESC, id DESC`,
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
+      playerName: row.player_name,
+      mobileNumber: row.mobile_number,
+      playDate: String(row.play_date).slice(0, 10),
+      court: row.court,
+      membership: row.membership,
+      players: Number(row.players),
+      feeINR: Number(row.fee_inr),
+    }));
+  }
+
   return withWorkbookLock(async () => {
     const { worksheet } = await openBookingsWorkbook();
     const rows = [];
@@ -248,17 +316,36 @@ async function readBookings() {
 }
 
 async function exportWorkbook(response) {
-  return withWorkbookLock(async () => {
-    const { workbook } = await openBookingsWorkbook();
-    const buffer = await workbook.xlsx.writeBuffer();
-    response.writeHead(200, {
-      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'content-disposition': 'attachment; filename="rainbow-sports-bookings.xlsx"',
-      'cache-control': 'no-store',
-      'x-content-type-options': 'nosniff',
+  let buffer;
+  if (databasePool) {
+    const rows = await readBookings();
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Bookings');
+    worksheet.addTable({
+      name: 'Bookings',
+      ref: 'A1',
+      headerRow: true,
+      totalsRow: false,
+      style: { theme: 'TableStyleMedium4', showRowStripes: true },
+      columns: workbookHeaders.map((name) => ({ name })),
+      rows: rows.map((booking) => [booking.submittedAt, booking.playerName, booking.mobileNumber,
+        booking.playDate, booking.court, booking.membership, booking.players, booking.feeINR]),
     });
-    response.end(Buffer.from(buffer));
+    buffer = await workbook.xlsx.writeBuffer();
+  } else {
+    buffer = await withWorkbookLock(async () => {
+      const { workbook } = await openBookingsWorkbook();
+      return workbook.xlsx.writeBuffer();
+    });
+  }
+
+  response.writeHead(200, {
+    'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'content-disposition': 'attachment; filename="rainbow-sports-bookings.xlsx"',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
   });
+  response.end(Buffer.from(buffer));
 }
 
 async function readJson(request) {
@@ -297,10 +384,11 @@ async function handleBooking(request, response) {
     await appendBooking(booking);
     return sendJson(response, 201, { ok: true });
   } catch (error) {
-    console.error('Booking workbook write failed:', {
+    console.error('Booking storage write failed:', {
       message: error.message,
       code: error.code || 'UNKNOWN',
-      workbookPath,
+      backend: databasePool ? 'supabase-postgresql' : 'local-excel',
+      workbookPath: databasePool ? undefined : workbookPath,
       stack: error.stack,
     });
     return sendJson(response, 503, { error: 'We could not save your booking. Please contact the academy.' });
@@ -353,13 +441,14 @@ async function handleAdminApi(request, response, pathname) {
       const rows = await readBookings();
       return sendJson(response, 200, { rows });
     } catch (error) {
-      console.error('Booking workbook read failed:', {
+      console.error('Booking storage read failed:', {
         message: error.message,
         code: error.code || 'UNKNOWN',
-        workbookPath,
+        backend: databasePool ? 'supabase-postgresql' : 'local-excel',
+        workbookPath: databasePool ? undefined : workbookPath,
         stack: error.stack,
       });
-      return sendJson(response, 503, { error: 'Could not load bookings from Excel. Please try again.' });
+      return sendJson(response, 503, { error: 'Could not load bookings from storage. Please try again.' });
     }
   }
 
@@ -368,10 +457,11 @@ async function handleAdminApi(request, response, pathname) {
     try {
       return await exportWorkbook(response);
     } catch (error) {
-      console.error('Booking workbook export failed:', {
+      console.error('Booking export failed:', {
         message: error.message,
         code: error.code || 'UNKNOWN',
-        workbookPath,
+        backend: databasePool ? 'supabase-postgresql' : 'local-excel',
+        workbookPath: databasePool ? undefined : workbookPath,
         stack: error.stack,
       });
       return sendJson(response, 503, { error: 'Could not export the Excel workbook.' });
@@ -416,6 +506,6 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`Rainbow Sports Academy booking app listening on port ${port}`);
-  console.log(`Excel bookings are stored at ${workbookPath}`);
+  console.log(databasePool ? 'Booking storage: Supabase/PostgreSQL' : `Local Excel bookings are stored at ${workbookPath}`);
   if (!loginConfigured) console.warn('Admin login is not configured; set ADMIN_PASSWORD to a private password of at least 12 characters.');
 });

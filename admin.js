@@ -94,12 +94,12 @@ async function loadBookings() {
       return;
     }
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Could not load the workbook.');
+    if (!response.ok) throw new Error(result.error || 'Could not load bookings.');
     bookings = result.rows;
     renderSummary();
     renderRows();
   } catch (error) {
-    setTableMessage(error.message || 'Could not load bookings from Excel.', true);
+    setTableMessage(error.message || 'Could not load bookings from storage.', true);
   }
 }
 
@@ -117,7 +117,7 @@ function downloadCsv() {
 
 async function downloadWorkbook() {
   const response = await fetch('/api/admin/workbook', { cache: 'no-store' });
-  if (!response.ok) throw new Error('Could not download the Excel workbook.');
+  if (!response.ok) throw new Error('Could not download the booking export.');
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a');
   link.href = url;
