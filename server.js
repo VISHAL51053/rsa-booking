@@ -235,14 +235,35 @@ async function ensureDatabaseSchema() {
   await databaseSchemaPromise;
 }
 
+let resolvedWorkbookPath = null;
+
+async function getWorkbookPath() {
+  if (resolvedWorkbookPath) return resolvedWorkbookPath;
+  const configured = path.resolve(root, process.env.BOOKINGS_WORKBOOK_PATH || 'data/bookings.xlsx');
+  try {
+    await fs.promises.mkdir(path.dirname(configured), { recursive: true });
+    resolvedWorkbookPath = configured;
+    return resolvedWorkbookPath;
+  } catch (err) {
+    if (err.code === 'EACCES' || err.code === 'EPERM' || err.code === 'ENOENT') {
+      const fallback = path.resolve(root, 'data/bookings.xlsx');
+      console.warn(`Cannot access configured workbook path "${configured}" (${err.message}). Falling back to workspace path "${fallback}".`);
+      await fs.promises.mkdir(path.dirname(fallback), { recursive: true });
+      resolvedWorkbookPath = fallback;
+      return resolvedWorkbookPath;
+    }
+    throw err;
+  }
+}
+
 async function openBookingsWorkbook() {
-  await fs.promises.mkdir(path.dirname(workbookPath), { recursive: true });
+  const filePath = await getWorkbookPath();
   const workbook = new ExcelJS.Workbook();
   let worksheet;
   let table;
 
-  if (fs.existsSync(workbookPath)) {
-    await workbook.xlsx.readFile(workbookPath);
+  if (fs.existsSync(filePath)) {
+    await workbook.xlsx.readFile(filePath);
     worksheet = workbook.getWorksheet('Bookings') || workbook.addWorksheet('Bookings');
     table = worksheet.getTable('Bookings');
     if (table && (!table.worksheet || !Array.isArray(table.table.rows) || !table.table.ref)) {
@@ -288,10 +309,10 @@ async function openBookingsWorkbook() {
     });
     worksheet.views = [{ state: 'frozen', ySplit: 1 }];
     worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    await workbook.xlsx.writeFile(workbookPath);
+    await workbook.xlsx.writeFile(filePath);
   }
 
-  return { workbook, worksheet, table };
+  return { workbook, worksheet, table, filePath };
 }
 
 async function appendBooking(booking) {
@@ -308,7 +329,7 @@ async function appendBooking(booking) {
   }
 
   return withWorkbookLock(async () => {
-    const { workbook, table } = await openBookingsWorkbook();
+    const { workbook, table, filePath } = await openBookingsWorkbook();
     table.addRow([
       booking.submittedAt,
       booking.playerName,
@@ -320,7 +341,7 @@ async function appendBooking(booking) {
       booking.feeINR,
     ]);
     table.commit();
-    await workbook.xlsx.writeFile(workbookPath);
+    await workbook.xlsx.writeFile(filePath);
   });
 }
 
