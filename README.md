@@ -38,6 +38,10 @@ Deploy the Node app behind HTTPS. Keep `.env` or the equivalent hosting environm
 
 The workbook is stored on the server filesystem at `BOOKINGS_WORKBOOK_PATH`. For hosting, point this setting to a persistent disk or mounted volume; ephemeral deployment storage can be lost when the app restarts or redeploys. Back up the workbook regularly. Run a single server instance unless a shared session store and coordinated workbook storage are added.
 
+### Render
+
+The repository includes `render.yaml` for a Node web service, a 1 GB persistent disk at `/var/data`, and `BOOKINGS_WORKBOOK_PATH=/var/data/bookings.xlsx`. It uses Render's paid `0.5c-512mb` plan because persistent disks require a paid instance. To sync it, sign in to Render, create a Blueprint Instance from this GitHub repository, and enter a private `ADMIN_PASSWORD` when prompted. Render matches Blueprint services by name: this file uses `rsa-booking`. If your current service has a different name, change `name` in `render.yaml` to its exact service name before syncing; otherwise Render may create a separate service. The Blueprint leaves the password out of GitHub. If you prefer manual setup, set `ADMIN_USERNAME=admin`, your private `ADMIN_PASSWORD`, and `BOOKINGS_WORKBOOK_PATH=/var/data/bookings.xlsx` in the existing service's Environment settings; add a persistent disk mounted at `/var/data`, then save and redeploy.
+
 The included anonymous booking form has server validation, a hidden bot trap, and basic rate limiting. Add hosting-level WAF or CAPTCHA controls if abuse becomes an issue.
 
 ## Membership pricing
