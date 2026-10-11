@@ -353,7 +353,12 @@ async function handleAdminApi(request, response, pathname) {
       const rows = await readBookings();
       return sendJson(response, 200, { rows });
     } catch (error) {
-      console.error('Booking workbook read failed:', error.message);
+      console.error('Booking workbook read failed:', {
+        message: error.message,
+        code: error.code || 'UNKNOWN',
+        workbookPath,
+        stack: error.stack,
+      });
       return sendJson(response, 503, { error: 'Could not load bookings from Excel. Please try again.' });
     }
   }
@@ -363,7 +368,12 @@ async function handleAdminApi(request, response, pathname) {
     try {
       return await exportWorkbook(response);
     } catch (error) {
-      console.error('Booking workbook export failed:', error.message);
+      console.error('Booking workbook export failed:', {
+        message: error.message,
+        code: error.code || 'UNKNOWN',
+        workbookPath,
+        stack: error.stack,
+      });
       return sendJson(response, 503, { error: 'Could not export the Excel workbook.' });
     }
   }
