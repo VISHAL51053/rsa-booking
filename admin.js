@@ -216,9 +216,15 @@ setInterval(() => {
   }
 }, 15_000);
 
-// Refresh when admin switches back to the tab
+// Refresh when admin switches back to the tab or wakes phone screen
 window.addEventListener('focus', () => {
   if (dashboardView && !dashboardView.hidden) {
+    loadBookings();
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && dashboardView && !dashboardView.hidden) {
     loadBookings();
   }
 });

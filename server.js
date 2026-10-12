@@ -596,6 +596,10 @@ const server = http.createServer(async (request, response) => {
   const { pathname } = requestUrl;
 
   try {
+    if (pathname === '/health' || pathname === '/ping') {
+      response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+      return response.end('OK');
+    }
     if (pathname === '/api/bookings') return await handleBooking(request, response);
     if (pathname.startsWith('/api/admin/')) return await handleAdminApi(request, response, pathname);
     return await readStaticFile(request, response, pathname);
