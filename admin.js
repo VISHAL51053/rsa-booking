@@ -103,10 +103,7 @@ function generateAdminWhatsAppMessage(booking) {
     `⏰ *Time:* ${playTimeStr}\n` +
     `🏟️ *Court:* ${booking.court}\n` +
     `👥 *Players:* ${booking.players}\n` +
-    `💰 *Amount:* ₹${formattedFee} (₹100/player)\n\n` +
-    `📍 *Venue:* Rainbow Sports Academy\n` +
-    `🏸 1.5 hours session per booking\n\n` +
-    `Thanks for booking`;
+    `💰 *Amount:* ₹${formattedFee} (₹100/player)`;
 }
 
 function renderRows() {
