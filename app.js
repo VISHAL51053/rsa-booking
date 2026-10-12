@@ -46,10 +46,18 @@ function validate() {
   }
   if (!name) { setError(nameInput, errors.name, 'Enter the player name.'); valid = false; }
   if (!mobile) { setError(mobileInput, errors.mobile, 'Enter a mobile number.'); valid = false; }
-  else if (digitCount < 7 || digitCount > 15) { setError(mobileInput, errors.mobile, 'Use a valid number with 7 to 15 digits.'); valid = false; }
+  else if (digitCount < 10 || digitCount > 15) { setError(mobileInput, errors.mobile, 'Use a valid 10-digit mobile number.'); valid = false; }
   if (!dateInput.value) { setError(dateInput, errors.date, 'Choose a date of play.'); valid = false; }
   else if (dateInput.value < todayString()) { setError(dateInput, errors.date, 'Choose today or a future date.'); valid = false; }
   if (!timeInput.value) { setError(timeInput, errors.time, 'Choose a time of play.'); valid = false; }
+  else if (dateInput.value === todayString()) {
+    const now = new Date();
+    const curTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (timeInput.value < curTime) {
+      setError(timeInput, errors.time, 'This time has already passed today. Select an upcoming time.');
+      valid = false;
+    }
+  }
   if (!Number.isInteger(playerCount) || playerCount < 1 || playerCount > 20) { setError(playersInput, errors.players, 'Choose between 1 and 20 players.'); valid = false; }
   return valid;
 }
@@ -111,7 +119,10 @@ document.querySelector('#increase-players').addEventListener('click', () => {
 });
 nameInput.addEventListener('input', () => setError(nameInput, errors.name, ''));
 mobileInput.addEventListener('input', () => setError(mobileInput, errors.mobile, ''));
-dateInput.addEventListener('input', () => setError(dateInput, errors.date, ''));
+dateInput.addEventListener('input', () => {
+  setError(dateInput, errors.date, '');
+  if (timeInput.value) setError(timeInput, errors.time, '');
+});
 timeInput.addEventListener('input', () => setError(timeInput, errors.time, ''));
 playersInput.addEventListener('input', () => setError(playersInput, errors.players, ''));
 playersInput.addEventListener('change', () => {

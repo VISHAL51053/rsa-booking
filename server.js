@@ -106,23 +106,36 @@ function requireSameOrigin(request) {
   const origin = request.headers.origin;
   if (!origin) return true;
   try {
-    return new URL(origin).host === request.headers.host;
+    const originHost = new URL(origin).host.toLowerCase();
+    const hostHeader = (request.headers['x-forwarded-host'] || request.headers.host || '').toLowerCase();
+    return originHost === hostHeader;
   } catch {
     return false;
   }
 }
 
 function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 }
 
 function parseDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isFinite(date.getTime()) && localDateString(date) === value;
+  const [y, m, d] = value.split('-').map(Number);
+  if (y < 2026 || y > 2099 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
 }
 
 function validateBooking(value) {
@@ -134,7 +147,7 @@ function validateBooking(value) {
   const today = localDateString();
 
   if (playerName.length < 1 || playerName.length > 60) return null;
-  if (digits.length < 7 || digits.length > 15 || mobileNumber.length > 24) return null;
+  if (digits.length < 10 || digits.length > 15 || mobileNumber.length > 24) return null;
   if (!parseDate(value.playDate) || value.playDate < today) return null;
   if (!['Court 1', 'Court 2'].includes(value.court)) return null;
   const membership = typeof value.membership === 'string' && Object.hasOwn(rates, value.membership)
@@ -143,6 +156,7 @@ function validateBooking(value) {
   if (!Number.isInteger(players) || players < 1 || players > 20) return null;
 
   const playTime = typeof value.playTime === 'string' ? value.playTime.trim().slice(0, 20) : '';
+  if (!playTime || playTime.length < 3) return null;
 
   const feeINR = rates[membership] * (membership === 'One-day' ? players : 1);
   return {
@@ -703,6 +717,10 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/health' || pathname === '/ping') {
       response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
       return response.end('OK');
+    }
+    if (pathname === '/favicon.ico') {
+      response.writeHead(204, { 'cache-control': 'public, max-age=86400' });
+      return response.end();
     }
     if (pathname === '/api/bookings') return await handleBooking(request, response);
     if (pathname.startsWith('/api/admin/')) return await handleAdminApi(request, response, pathname);
