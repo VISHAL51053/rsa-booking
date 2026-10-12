@@ -60,4 +60,4 @@ Render Free sleeps after 15 minutes of inactivity. To ensure instant page loads 
 
 ## Session pricing
 
-- Court session: ₹100 per player for one 1.5–2 hour session; total fee is ₹100 multiplied by the player count.
+- Court session: ₹100 per player for one 1.5-hour session; total fee is ₹100 multiplied by the player count.
