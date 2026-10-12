@@ -1,13 +1,106 @@
-.brand-name {
-  font: 700 13px/1.08 var(--display);
+/* Rainbow Sports Academy Branding Standards - Prominent Academy Name */
+.brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  text-decoration: none !important;
 }
 
-@media (max-width: 390px) {
+.brand-mark {
+  width: 42px !important;
+  height: 42px !important;
+  border-width: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.brand-name {
+  font-family: var(--display) !important;
+  font-size: 26px !important;
+  font-weight: 800 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.03em !important;
+  color: #ffffff !important;
+  display: inline-block !important;
+}
+
+/* Prominent Academy Eyebrow Tag above Page Title */
+.eyebrow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 0 14px !important;
+  color: #174a3a !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.eyebrow i {
+  width: 26px !important;
+  height: 3.5px !important;
+  background: #3b9a69 !important;
+  border-radius: 2px !important;
+}
+
+/* Sidebar venue text */
+.venue {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+.venue-tagline {
+  font-size: 12px !important;
+}
+
+/* Responsive Mobile Navigation Bar */
+@media (max-width: 790px) {
+  .sidebar {
+    height: auto !important;
+    min-height: 64px !important;
+    padding: 12px 20px !important;
+  }
+
   .brand {
-    gap: 7px;
+    gap: 12px !important;
+  }
+
+  .brand-mark {
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .brand-name {
-    font-size: 12px;
+    font-size: 22px !important;
+    line-height: 1.08 !important;
+  }
+
+  .eyebrow {
+    font-size: 13.5px !important;
+    margin-bottom: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 12px 16px !important;
+  }
+
+  .brand {
+    gap: 10px !important;
+  }
+
+  .brand-mark {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .brand-name {
+    font-size: 20px !important;
+    line-height: 1.1 !important;
+  }
+
+  .eyebrow {
+    font-size: 13px !important;
   }
 }
