@@ -2,11 +2,13 @@ const form = document.querySelector('#booking-form');
 const nameInput = document.querySelector('#player-name');
 const mobileInput = document.querySelector('#mobile-number');
 const dateInput = document.querySelector('#play-date');
+const timeInput = document.querySelector('#play-time');
 const playersInput = document.querySelector('#player-count');
 const errors = {
   name: document.querySelector('#name-error'),
   mobile: document.querySelector('#mobile-error'),
   date: document.querySelector('#date-error'),
+  time: document.querySelector('#time-error'),
   players: document.querySelector('#players-error'),
 };
 let toastTimer;
@@ -39,7 +41,7 @@ function validate() {
   let valid = true;
 
   for (const key of Object.keys(errors)) {
-    const input = key === 'name' ? nameInput : key === 'mobile' ? mobileInput : key === 'date' ? dateInput : playersInput;
+    const input = key === 'name' ? nameInput : key === 'mobile' ? mobileInput : key === 'date' ? dateInput : key === 'time' ? timeInput : playersInput;
     setError(input, errors[key], '');
   }
   if (!name) { setError(nameInput, errors.name, 'Enter the player name.'); valid = false; }
@@ -47,6 +49,7 @@ function validate() {
   else if (digitCount < 7 || digitCount > 15) { setError(mobileInput, errors.mobile, 'Use a valid number with 7 to 15 digits.'); valid = false; }
   if (!dateInput.value) { setError(dateInput, errors.date, 'Choose a date of play.'); valid = false; }
   else if (dateInput.value < todayString()) { setError(dateInput, errors.date, 'Choose today or a future date.'); valid = false; }
+  if (!timeInput.value) { setError(timeInput, errors.time, 'Choose a time of play.'); valid = false; }
   if (!Number.isInteger(playerCount) || playerCount < 1 || playerCount > 20) { setError(playersInput, errors.players, 'Choose between 1 and 20 players.'); valid = false; }
   return valid;
 }
@@ -60,13 +63,13 @@ form.addEventListener('submit', async (event) => {
 
   const button = form.querySelector('.submit-button');
   const courtSelected = form.querySelector('input[name="court"]:checked')?.value || 'Court 1';
-  const membershipSelected = document.querySelector('input[name="membership"]:checked')?.value || 'One-day';
   const booking = {
     playerName: nameInput.value.trim(),
     mobileNumber: mobileInput.value.trim(),
     playDate: dateInput.value,
+    playTime: timeInput.value,
     court: courtSelected,
-    membership: membershipSelected,
+    membership: 'One-day',
     players: Number(playersInput.value),
     website: document.querySelector('#website')?.value || '',
   };
@@ -85,9 +88,8 @@ form.addEventListener('submit', async (event) => {
 
     const bookingName = booking.playerName;
     form.reset();
-    const defaultMembership = document.querySelector('input[name="membership"][value="One-day"]');
-    if (defaultMembership) defaultMembership.checked = true;
     dateInput.value = todayString();
+    timeInput.value = '';
     playersInput.value = '2';
     showToast(`Booking received for ${bookingName}.`);
   } catch (error) {
@@ -110,6 +112,7 @@ document.querySelector('#increase-players').addEventListener('click', () => {
 nameInput.addEventListener('input', () => setError(nameInput, errors.name, ''));
 mobileInput.addEventListener('input', () => setError(mobileInput, errors.mobile, ''));
 dateInput.addEventListener('input', () => setError(dateInput, errors.date, ''));
+timeInput.addEventListener('input', () => setError(timeInput, errors.time, ''));
 playersInput.addEventListener('input', () => setError(playersInput, errors.players, ''));
 playersInput.addEventListener('change', () => {
   const value = Number(playersInput.value);

@@ -33,7 +33,7 @@ const databasePool = databaseUrl ? new Pool({
   max: 5,
 }) : null;
 const workbookPath = path.resolve(root, process.env.BOOKINGS_WORKBOOK_PATH || 'data/bookings.xlsx');
-const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'Court', 'Membership', 'Players', 'FeeINR'];
+const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'PlayTime', 'Court', 'Membership', 'Players', 'FeeINR'];
 const rates = { 'One-day': 100, Weekly: 500, Monthly: 1000 };
 const publicFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -137,17 +137,22 @@ function validateBooking(value) {
   if (digits.length < 7 || digits.length > 15 || mobileNumber.length > 24) return null;
   if (!parseDate(value.playDate) || value.playDate < today) return null;
   if (!['Court 1', 'Court 2'].includes(value.court)) return null;
-  if (!Object.hasOwn(rates, value.membership)) return null;
+  const membership = typeof value.membership === 'string' && Object.hasOwn(rates, value.membership)
+    ? value.membership
+    : 'One-day';
   if (!Number.isInteger(players) || players < 1 || players > 20) return null;
 
-  const feeINR = rates[value.membership] * (value.membership === 'One-day' ? players : 1);
+  const playTime = typeof value.playTime === 'string' ? value.playTime.trim().slice(0, 20) : '';
+
+  const feeINR = rates[membership] * (membership === 'One-day' ? players : 1);
   return {
     submittedAt: new Date().toISOString(),
     playerName,
     mobileNumber,
     playDate: value.playDate,
+    playTime,
     court: value.court,
-    membership: value.membership,
+    membership,
     players,
     feeINR,
   };
@@ -199,11 +204,13 @@ async function ensureDatabaseSchema() {
           player_name TEXT NOT NULL,
           mobile_number TEXT NOT NULL,
           play_date DATE NOT NULL,
+          play_time TEXT DEFAULT '',
           court TEXT NOT NULL CHECK (court IN ('Court 1', 'Court 2')),
           membership TEXT NOT NULL CHECK (membership IN ('One-day', 'Weekly', 'Monthly')),
           players INTEGER NOT NULL CHECK (players BETWEEN 1 AND 20),
           fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0)
         );
+        ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS play_time TEXT DEFAULT '';
       `);
       try {
         await databasePool.query(`
@@ -322,10 +329,10 @@ async function appendBooking(booking) {
     await ensureDatabaseSchema();
     await databasePool.query(
       `INSERT INTO public.bookings
-        (submitted_at, player_name, mobile_number, play_date, court, membership, players, fee_inr)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        (submitted_at, player_name, mobile_number, play_date, play_time, court, membership, players, fee_inr)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [booking.submittedAt, booking.playerName, booking.mobileNumber, booking.playDate,
-        booking.court, booking.membership, booking.players, booking.feeINR],
+        booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR],
     );
     return;
   }
@@ -337,6 +344,7 @@ async function appendBooking(booking) {
       booking.playerName,
       booking.mobileNumber,
       booking.playDate,
+      booking.playTime || '',
       booking.court,
       booking.membership,
       booking.players,
@@ -374,7 +382,7 @@ async function readBookings() {
   if (databasePool) {
     await ensureDatabaseSchema();
     const result = await databasePool.query(
-      `SELECT id, submitted_at, player_name, mobile_number, play_date, court, membership, players, fee_inr
+      `SELECT id, submitted_at, player_name, mobile_number, play_date, COALESCE(play_time, '') as play_time, court, membership, players, fee_inr
        FROM public.bookings
        ORDER BY submitted_at DESC, id DESC`,
     );
@@ -384,6 +392,7 @@ async function readBookings() {
       playerName: row.player_name,
       mobileNumber: row.mobile_number,
       playDate: normalizeDateString(row.play_date),
+      playTime: row.play_time || '',
       court: row.court,
       membership: row.membership,
       players: Number(row.players),
@@ -396,16 +405,39 @@ async function readBookings() {
     const rows = [];
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       if (rowNumber === 1) return;
+      const col5 = String(excelCell(row, 5));
+      let playTime = '';
+      let court = '';
+      let membership = '';
+      let players = 0;
+      let feeINR = 0;
+
+      if (col5 === 'Court 1' || col5 === 'Court 2') {
+        // Legacy 8-column format without PlayTime
+        court = col5;
+        membership = String(excelCell(row, 6));
+        players = Number(excelCell(row, 7)) || 0;
+        feeINR = Number(excelCell(row, 8)) || 0;
+      } else {
+        // 9-column format with PlayTime
+        playTime = col5;
+        court = String(excelCell(row, 6));
+        membership = String(excelCell(row, 7));
+        players = Number(excelCell(row, 8)) || 0;
+        feeINR = Number(excelCell(row, 9)) || 0;
+      }
+
       rows.push({
         id: String(rowNumber - 2),
         submittedAt: String(excelCell(row, 1)),
         playerName: String(excelCell(row, 2)),
         mobileNumber: String(excelCell(row, 3)),
         playDate: String(excelCell(row, 4)).slice(0, 10),
-        court: String(excelCell(row, 5)),
-        membership: String(excelCell(row, 6)),
-        players: Number(excelCell(row, 7)) || 0,
-        feeINR: Number(excelCell(row, 8)) || 0,
+        playTime,
+        court,
+        membership,
+        players,
+        feeINR,
       });
     });
     return rows.reverse();
@@ -426,7 +458,7 @@ async function exportWorkbook(response) {
       style: { theme: 'TableStyleMedium4', showRowStripes: true },
       columns: workbookHeaders.map((name) => ({ name })),
       rows: rows.map((booking) => [booking.submittedAt, booking.playerName, booking.mobileNumber,
-        booking.playDate, booking.court, booking.membership, booking.players, booking.feeINR]),
+        booking.playDate, booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR]),
     });
     buffer = await workbook.xlsx.writeBuffer();
   } else {

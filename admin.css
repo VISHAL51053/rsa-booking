@@ -42,3 +42,8 @@
   cursor: not-allowed;
   transform: none;
 }
+
+.time-value {
+  color: #225139 !important;
+  font-weight: 600;
+}

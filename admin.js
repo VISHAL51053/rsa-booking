@@ -35,6 +35,19 @@ function formattedDate(value) {
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
+function formatTime(value) {
+  if (!value) return '—';
+  const match = String(value).match(/^(\d{1,2}):(\d{2})$/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = match[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return String(value);
+}
+
 function addCell(row, className, value) {
   const cell = document.createElement('td');
   cell.className = className;
@@ -49,7 +62,7 @@ function renderRows() {
     const playDate = String(booking.playDate || '').slice(0, 10);
     if (dateFilter.value === 'upcoming' && playDate < today) return false;
     if (dateFilter.value === 'past' && playDate >= today) return false;
-    return `${booking.playerName || ''} ${booking.mobileNumber || ''} ${booking.court || ''} ${booking.membership || ''} ${playDate}`.toLocaleLowerCase().includes(query);
+    return `${booking.playerName || ''} ${booking.mobileNumber || ''} ${booking.court || ''} ${booking.playTime || ''} ${playDate}`.toLocaleLowerCase().includes(query);
   });
 
   tableBody.replaceChildren(...visible.map((booking) => {
@@ -57,6 +70,7 @@ function renderRows() {
     addCell(row, 'player-name', booking.playerName);
     addCell(row, '', booking.mobileNumber);
     addCell(row, '', formattedDate(booking.playDate));
+    addCell(row, 'time-value', formatTime(booking.playTime));
 
     const courtCell = document.createElement('td');
     const courtBadge = document.createElement('span');
@@ -65,12 +79,6 @@ function renderRows() {
     courtCell.append(courtBadge);
     row.append(courtCell);
 
-    const planCell = document.createElement('td');
-    const planBadge = document.createElement('span');
-    planBadge.className = 'plan-badge';
-    planBadge.textContent = booking.membership;
-    planCell.append(planBadge);
-    row.append(planCell);
     addCell(row, '', String(booking.players));
     addCell(row, 'fee-value', `₹${new Intl.NumberFormat('en-IN').format(booking.feeINR)}`);
     return row;
@@ -111,8 +119,8 @@ async function loadBookings() {
 }
 
 function downloadCsv() {
-  const columns = ['Player name', 'Mobile number', 'Date of play', 'Court', 'Membership', 'Players', 'Fee INR', 'Submitted at'];
-  const rows = bookings.map((booking) => [booking.playerName, booking.mobileNumber, booking.playDate, booking.court, booking.membership, booking.players, booking.feeINR, booking.submittedAt]);
+  const columns = ['Player name', 'Mobile number', 'Date of play', 'Time of play', 'Court', 'Players', 'Fee INR', 'Submitted at'];
+  const rows = bookings.map((booking) => [booking.playerName, booking.mobileNumber, booking.playDate, formatTime(booking.playTime), booking.court, booking.players, booking.feeINR, booking.submittedAt]);
   const csv = [columns, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
