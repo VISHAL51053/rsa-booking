@@ -54,6 +54,10 @@ The repository includes `render.yaml` for a free Node web service and prompts fo
 
 The included anonymous booking form has server validation, a hidden bot trap, and basic rate limiting. Add hosting-level WAF or CAPTCHA controls if abuse becomes an issue.
 
+## Keep-alive automation (Prevent Render cold start)
+
+Render Free sleeps after 15 minutes of inactivity. To ensure instant page loads without the 30–40 second cold start delay, an automated GitHub Actions workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) runs every 10 minutes in the background, continuously pinging the `/health` endpoint to keep the web service awake 24/7.
+
 ## Membership pricing
 
 - One-day: ₹100 per player for one 1.5-2 hour session; total fee is ₹100 multiplied by the player count.
