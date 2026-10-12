@@ -32,6 +32,22 @@ const databasePool = databaseUrl ? new Pool({
   idleTimeoutMillis: 30_000,
   max: 5,
 }) : null;
+
+if (databasePool) {
+  databasePool.on('error', (err) => {
+    // Non-fatal: Supabase session pooler drops idle client connections periodically.
+    // Handling this event prevents Node.js from exiting/restarting.
+    console.warn('Database pool idle client warning (auto-reconnecting):', err.message);
+  });
+}
+
+process.on('unhandledRejection', (reason) => {
+  console.warn('Unhandled Promise Rejection (non-fatal):', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception caught:', err);
+});
 const workbookPath = path.resolve(root, process.env.BOOKINGS_WORKBOOK_PATH || 'data/bookings.xlsx');
 const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'PlayTime', 'Court', 'Membership', 'Players', 'FeeINR'];
 const rates = { 'One-day': 100, Weekly: 500, Monthly: 1000 };
@@ -910,4 +926,27 @@ server.listen(port, '0.0.0.0', () => {
   console.log(`Rainbow Sports Academy booking app listening on port ${port}`);
   console.log(databasePool ? 'Booking storage: Supabase/PostgreSQL' : `Local Excel bookings are stored at ${workbookPath}`);
   if (!loginConfigured) console.warn('Admin login is not configured; set ADMIN_PASSWORD to a private password of at least 12 characters.');
+
+  // Keep-alive self-ping: Ping /health every 8 minutes to prevent Render's 15-minute inactivity idle sleep
+  const serviceUrl = process.env.RENDER_EXTERNAL_URL || 'https://rsa-booking.onrender.com';
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    const pingIntervalMs = 8 * 60 * 1000;
+    setInterval(async () => {
+      try {
+        const pingUrl = `${serviceUrl}/health`;
+        const res = await fetch(pingUrl, { signal: AbortSignal.timeout(20000) });
+        console.log(`Keep-alive self-ping sent to ${pingUrl} (status ${res.status})`);
+      } catch (err) {
+        console.warn('Keep-alive self-ping notice:', err.message);
+      }
+    }, pingIntervalMs).unref();
+  }
+});
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing HTTP server gracefully.');
+  server.close(() => {
+    if (databasePool) databasePool.end().catch(() => {});
+    process.exit(0);
+  });
 });
