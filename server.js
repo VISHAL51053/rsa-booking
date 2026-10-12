@@ -46,6 +46,8 @@ const publicFiles = new Map([
   ['/admin/', ['admin.html', 'text/html; charset=utf-8']],
   ['/admin.css', ['admin.css', 'text/css; charset=utf-8']],
   ['/admin.js', ['admin.js', 'text/javascript; charset=utf-8']],
+  ['/qr-code.png', ['qr-code.png', 'image/png']],
+  ['/qr-code.svg', ['qr-code.svg', 'image/svg+xml']],
 ]);
 const sessions = new Map();
 const requestsByAddress = new Map();
