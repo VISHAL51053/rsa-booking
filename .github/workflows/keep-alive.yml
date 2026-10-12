@@ -1,0 +1,26 @@
+name: Keep Render App Awake
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render free instance from idling/sleeping
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send keep-alive ping to Render
+        run: |
+          echo "Sending keep-alive ping to https://rsa-booking.onrender.com/health"
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 45 "https://rsa-booking.onrender.com/health")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "Successfully pinged application. Server is awake."
+          else
+            echo "Primary health ping returned status $HTTP_CODE, trying fallback /ping endpoint..."
+            curl -s -f --max-time 45 "https://rsa-booking.onrender.com/ping"
+          fi
