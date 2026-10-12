@@ -13,6 +13,102 @@ const errors = {
 };
 let toastTimer;
 
+const bookingModal = document.querySelector('#booking-modal');
+const modalCloseBtn = document.querySelector('#modal-close-btn');
+const modalDoneBtn = document.querySelector('#modal-done-btn');
+const modalSummaryName = document.querySelector('#modal-summary-name');
+const modalSummaryDate = document.querySelector('#modal-summary-date');
+const modalSummaryTime = document.querySelector('#modal-summary-time');
+const modalSummaryCourt = document.querySelector('#modal-summary-court');
+const modalSummaryPlayers = document.querySelector('#modal-summary-players');
+const modalSummaryFee = document.querySelector('#modal-summary-fee');
+const modalWaBtn = document.querySelector('#modal-whatsapp-btn');
+const modalAcademyWaBtn = document.querySelector('#modal-academy-wa-btn');
+
+function formatDisplayDate(dateStr) {
+  try {
+    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (y && m && d) {
+      return new Intl.DateTimeFormat('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(y, m - 1, d));
+    }
+  } catch {}
+  return dateStr;
+}
+
+function formatDisplayTime(timeStr) {
+  if (!timeStr) return '';
+  const match = String(timeStr).match(/^(\d{1,2}):(\d{2})$/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = match[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return timeStr;
+}
+
+function closeModal() {
+  if (!bookingModal) return;
+  bookingModal.classList.remove('is-visible');
+  setTimeout(() => {
+    bookingModal.hidden = true;
+  }, 250);
+}
+
+function showBookingSuccess(bookingData, whatsappData) {
+  if (!bookingModal) return;
+  if (modalSummaryName) modalSummaryName.textContent = bookingData.playerName;
+  if (modalSummaryDate) modalSummaryDate.textContent = formatDisplayDate(bookingData.playDate);
+  if (modalSummaryTime) modalSummaryTime.textContent = formatDisplayTime(bookingData.playTime);
+  if (modalSummaryCourt) modalSummaryCourt.textContent = bookingData.court;
+  if (modalSummaryPlayers) modalSummaryPlayers.textContent = `${bookingData.players} Player${bookingData.players > 1 ? 's' : ''}`;
+  if (modalSummaryFee) modalSummaryFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(bookingData.feeINR)}`;
+
+  if (modalWaBtn && whatsappData?.link) {
+    modalWaBtn.href = whatsappData.link;
+  }
+  if (modalAcademyWaBtn) {
+    if (whatsappData?.academyLink) {
+      modalAcademyWaBtn.href = whatsappData.academyLink;
+      modalAcademyWaBtn.style.display = 'inline-flex';
+    } else {
+      modalAcademyWaBtn.style.display = 'none';
+    }
+  }
+
+  bookingModal.hidden = false;
+  requestAnimationFrame(() => {
+    bookingModal.classList.add('is-visible');
+  });
+
+  // Automatically trigger opening WhatsApp with pre-filled message (Date, Time, Amount)
+  if (whatsappData?.link) {
+    try {
+      const waTab = window.open(whatsappData.link, '_blank', 'noopener,noreferrer');
+      if (waTab) waTab.focus();
+    } catch (popupErr) {
+      console.warn('Popup blocked by browser; user can click WhatsApp button in modal.', popupErr);
+    }
+  }
+}
+
+if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
+if (modalDoneBtn) modalDoneBtn.addEventListener('click', closeModal);
+if (bookingModal) {
+  bookingModal.addEventListener('click', (event) => {
+    if (event.target === bookingModal) closeModal();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !bookingModal.hidden) closeModal();
+  });
+}
+
 function todayString(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -94,12 +190,27 @@ form.addEventListener('submit', async (event) => {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || 'Booking could not be submitted. Please try again.');
 
+    const bookingResult = result.booking || {
+      playerName: booking.playerName,
+      mobileNumber: booking.mobileNumber,
+      playDate: booking.playDate,
+      playTime: booking.playTime,
+      court: booking.court,
+      players: booking.players,
+      feeINR: booking.players * 100,
+    };
+    const waData = result.whatsapp || {
+      link: `https://wa.me/${booking.mobileNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Booking Confirmed')}`,
+    };
+
     const bookingName = booking.playerName;
     form.reset();
     dateInput.value = todayString();
     timeInput.value = '';
     playersInput.value = '2';
     showToast(`Booking received for ${bookingName}.`);
+
+    showBookingSuccess(bookingResult, waData);
   } catch (error) {
     showToast(error.message || 'Unable to send booking. Please try again.', true);
   } finally {

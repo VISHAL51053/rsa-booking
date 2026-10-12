@@ -61,3 +61,18 @@ Render Free sleeps after 15 minutes of inactivity. To ensure instant page loads 
 ## Session pricing
 
 - Court session: ₹100 per player for one 1.5-hour session; total fee is ₹100 multiplied by the player count.
+
+## Automated WhatsApp Booking Notifications
+
+Upon successful reservation, an automated WhatsApp booking confirmation is generated containing:
+- **Date of Play**: e.g. `Sun, 18 Oct 2026`
+- **Time of Play**: e.g. `07:00 PM`
+- **Court**: `Court 1` or `Court 2`
+- **Players**: Number of players
+- **Total Amount**: Recorded fee (e.g. `₹200` for 2 players)
+- **Venue**: `Rainbow Sports Academy`
+
+### Delivery & Controls
+1. **Client-side instant trigger**: Automatically opens WhatsApp with the formatted confirmation addressed to the player's mobile number (`wa.me/<phone>`), accompanied by an interactive confirmation modal with direct WhatsApp action buttons.
+2. **Admin Dashboard one-click WhatsApp**: In the admin portal (`/admin`), every reservation row includes a dedicated green `WhatsApp` button to instantly send or re-send the confirmation to the player.
+3. **Optional Background Delivery**: Configure `WHATSAPP_WEBHOOK_URL` or Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER`) in `.env` for direct automated background dispatch. Set `ACADEMY_WHATSAPP_PHONE` to direct academy inquiries.

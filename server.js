@@ -46,6 +46,7 @@ const publicFiles = new Map([
   ['/admin/', ['admin.html', 'text/html; charset=utf-8']],
   ['/admin.css', ['admin.css', 'text/css; charset=utf-8']],
   ['/admin.js', ['admin.js', 'text/javascript; charset=utf-8']],
+  ['/whatsapp.css', ['whatsapp.css', 'text/css; charset=utf-8']],
   ['/qr-code.png', ['qr-code.png', 'image/png']],
   ['/qr-code.svg', ['qr-code.svg', 'image/svg+xml']],
 ]);
@@ -170,6 +171,107 @@ function validateBooking(value) {
     players,
     feeINR,
   };
+}
+
+function formatWhatsAppPhone(mobile) {
+  const digits = String(mobile || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+}
+
+function formatDisplayDate(dateStr) {
+  try {
+    const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
+    if (y && m && d) {
+      return new Intl.DateTimeFormat('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(y, m - 1, d));
+    }
+  } catch {}
+  return dateStr;
+}
+
+function formatDisplayTime(timeStr) {
+  if (!timeStr) return '';
+  const match = String(timeStr).match(/^(\d{1,2}):(\d{2})$/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = match[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+  return timeStr;
+}
+
+function generateWhatsAppMessage(booking) {
+  const displayDate = formatDisplayDate(booking.playDate);
+  const displayTime = formatDisplayTime(booking.playTime);
+  const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR);
+
+  return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
+    `*Booking Confirmation*\n\n` +
+    `Hello *${booking.playerName}*,\n\n` +
+    `📅 *Date:* ${displayDate}\n` +
+    `⏰ *Time:* ${displayTime}\n` +
+    `🏟️ *Court:* ${booking.court}\n` +
+    `👥 *Players:* ${booking.players}\n` +
+    `💰 *Amount:* ₹${formattedFee} (₹100/player)\n\n` +
+    `📍 *Venue:* Rainbow Sports Academy\n` +
+    `🏸 1.5 hours session per booking\n\n` +
+    `Thanks for booking`;
+}
+
+async function sendAutomatedWhatsApp(booking, message) {
+  const webhookUrl = process.env.WHATSAPP_WEBHOOK_URL;
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
+  const twilioFrom = process.env.TWILIO_WHATSAPP_NUMBER;
+  const playerPhone = formatWhatsAppPhone(booking.mobileNumber);
+
+  if (webhookUrl) {
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: playerPhone,
+          message,
+          booking,
+        }),
+      });
+      console.log(`WhatsApp webhook triggered for ${booking.playerName} (${playerPhone})`);
+    } catch (err) {
+      console.warn('WhatsApp webhook dispatch error:', err.message);
+    }
+  }
+
+  if (twilioSid && twilioAuth && twilioFrom && playerPhone) {
+    try {
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
+      const authHeader = 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuth}`).toString('base64');
+      const params = new URLSearchParams();
+      params.append('From', twilioFrom.startsWith('whatsapp:') ? twilioFrom : `whatsapp:${twilioFrom}`);
+      params.append('To', `whatsapp:+${playerPhone}`);
+      params.append('Body', message);
+
+      await fetch(twilioUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+      console.log(`Twilio WhatsApp sent for ${booking.playerName} (${playerPhone})`);
+    } catch (err) {
+      console.warn('Twilio WhatsApp dispatch error:', err.message);
+    }
+  }
 }
 
 function getClientIp(request) {
@@ -573,7 +675,38 @@ async function handleBooking(request, response) {
 
   try {
     await appendBooking(booking);
-    return sendJson(response, 201, { ok: true });
+
+    const whatsappMessage = generateWhatsAppMessage(booking);
+    const playerPhone = formatWhatsAppPhone(booking.mobileNumber);
+    const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919876543210');
+    const whatsappLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+    const academyLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+
+    sendAutomatedWhatsApp(booking, whatsappMessage).catch((e) => {
+      console.warn('Background WhatsApp automated dispatch notice:', e.message);
+    });
+
+    return sendJson(response, 201, {
+      ok: true,
+      booking: {
+        playerName: booking.playerName,
+        mobileNumber: booking.mobileNumber,
+        playDate: booking.playDate,
+        playTime: booking.playTime,
+        court: booking.court,
+        membership: booking.membership,
+        players: booking.players,
+        feeINR: booking.feeINR,
+        submittedAt: booking.submittedAt,
+      },
+      whatsapp: {
+        message: whatsappMessage,
+        playerPhone,
+        academyPhone,
+        link: whatsappLink,
+        academyLink,
+      },
+    });
   } catch (error) {
     console.error('Booking storage write failed:', {
       message: error.message,
