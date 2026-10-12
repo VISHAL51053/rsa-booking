@@ -70,16 +70,13 @@ function showBookingSuccess(bookingData, whatsappData) {
   if (modalSummaryPlayers) modalSummaryPlayers.textContent = `${bookingData.players} Player${bookingData.players > 1 ? 's' : ''}`;
   if (modalSummaryFee) modalSummaryFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(bookingData.feeINR)}`;
 
-  if (modalWaBtn && whatsappData?.link) {
-    modalWaBtn.href = whatsappData.link;
+  const academyTarget = whatsappData?.academyLink || whatsappData?.link || 'https://wa.me/919842751053';
+  if (modalWaBtn) {
+    modalWaBtn.href = academyTarget;
   }
   if (modalAcademyWaBtn) {
-    if (whatsappData?.academyLink) {
-      modalAcademyWaBtn.href = whatsappData.academyLink;
-      modalAcademyWaBtn.style.display = 'inline-flex';
-    } else {
-      modalAcademyWaBtn.style.display = 'none';
-    }
+    modalAcademyWaBtn.href = academyTarget;
+    modalAcademyWaBtn.style.display = 'inline-flex';
   }
 
   bookingModal.hidden = false;
@@ -87,10 +84,10 @@ function showBookingSuccess(bookingData, whatsappData) {
     bookingModal.classList.add('is-visible');
   });
 
-  // Automatically trigger opening WhatsApp with pre-filled message (Date, Time, Amount)
-  if (whatsappData?.link) {
+  // Automatically trigger opening Academy WhatsApp (9842751053) with pre-filled message
+  if (academyTarget) {
     try {
-      const waTab = window.open(whatsappData.link, '_blank', 'noopener,noreferrer');
+      const waTab = window.open(academyTarget, '_blank', 'noopener,noreferrer');
       if (waTab) waTab.focus();
     } catch (popupErr) {
       console.warn('Popup blocked by browser; user can click WhatsApp button in modal.', popupErr);
@@ -200,7 +197,8 @@ form.addEventListener('submit', async (event) => {
       feeINR: booking.players * 100,
     };
     const waData = result.whatsapp || {
-      link: `https://wa.me/${booking.mobileNumber.replace(/\D/g, '')}?text=${encodeURIComponent('Booking Confirmed')}`,
+      link: `https://wa.me/919842751053?text=${encodeURIComponent('Booking Confirmed')}`,
+      academyLink: `https://wa.me/919842751053?text=${encodeURIComponent('Booking Confirmed')}`,
     };
 
     const bookingName = booking.playerName;

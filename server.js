@@ -242,7 +242,7 @@ async function sendAutomatedWhatsApp(booking, message) {
           phone: playerPhone,
           message,
           booking,
-          senderNumber: '919824751053',
+          senderNumber: '919842751053',
         }),
       });
       console.log(`WhatsApp webhook triggered for ${booking.playerName} (${playerPhone})`);
@@ -251,7 +251,7 @@ async function sendAutomatedWhatsApp(booking, message) {
     }
   }
 
-  // UltraMsg instance integration (linked to 9824751053 via QR scan)
+  // UltraMsg instance integration (linked to 9842751053 via QR scan)
   const ultramsgInstance = process.env.ULTRAMSG_INSTANCE_ID;
   const ultramsgToken = process.env.ULTRAMSG_TOKEN;
   if (ultramsgInstance && ultramsgToken && playerPhone) {
@@ -267,13 +267,13 @@ async function sendAutomatedWhatsApp(booking, message) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      console.log('UltraMsg automated WhatsApp dispatch from 9824751053:', data);
+      console.log('UltraMsg automated WhatsApp dispatch from 9842751053:', data);
     } catch (err) {
       console.warn('UltraMsg dispatch error:', err.message);
     }
   }
 
-  // Green-API instance integration (linked to 9824751053 via QR scan)
+  // Green-API instance integration (linked to 9842751053 via QR scan)
   const greenInstance = process.env.GREEN_API_INSTANCE_ID;
   const greenToken = process.env.GREEN_API_TOKEN;
   if (greenInstance && greenToken && playerPhone) {
@@ -287,7 +287,7 @@ async function sendAutomatedWhatsApp(booking, message) {
           message,
         }),
       });
-      console.log('Green-API automated WhatsApp dispatch from 9824751053:', res.status);
+      console.log('Green-API automated WhatsApp dispatch from 9842751053:', res.status);
     } catch (err) {
       console.warn('Green-API dispatch error:', err.message);
     }
@@ -721,9 +721,11 @@ async function handleBooking(request, response) {
 
     const whatsappMessage = generateWhatsAppMessage(booking);
     const playerPhone = formatWhatsAppPhone(booking.mobileNumber);
-    const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919824751053');
-    const whatsappLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+    const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919842751053');
     const academyLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+    const playerLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+    // Default link for auto-open and primary button: Academy WhatsApp (9842751053)
+    const whatsappLink = academyLink;
 
     sendAutomatedWhatsApp(booking, whatsappMessage).catch((e) => {
       console.warn('Background WhatsApp automated dispatch notice:', e.message);
@@ -748,6 +750,7 @@ async function handleBooking(request, response) {
         academyPhone,
         link: whatsappLink,
         academyLink,
+        playerLink,
       },
     });
   } catch (error) {
