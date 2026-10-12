@@ -242,11 +242,54 @@ async function sendAutomatedWhatsApp(booking, message) {
           phone: playerPhone,
           message,
           booking,
+          senderNumber: '919824751053',
         }),
       });
       console.log(`WhatsApp webhook triggered for ${booking.playerName} (${playerPhone})`);
     } catch (err) {
       console.warn('WhatsApp webhook dispatch error:', err.message);
+    }
+  }
+
+  // UltraMsg instance integration (linked to 9824751053 via QR scan)
+  const ultramsgInstance = process.env.ULTRAMSG_INSTANCE_ID;
+  const ultramsgToken = process.env.ULTRAMSG_TOKEN;
+  if (ultramsgInstance && ultramsgToken && playerPhone) {
+    try {
+      const url = `https://api.ultramsg.com/${ultramsgInstance}/messages/chat`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          token: ultramsgToken,
+          to: `+${playerPhone}`,
+          body: message,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      console.log('UltraMsg automated WhatsApp dispatch from 9824751053:', data);
+    } catch (err) {
+      console.warn('UltraMsg dispatch error:', err.message);
+    }
+  }
+
+  // Green-API instance integration (linked to 9824751053 via QR scan)
+  const greenInstance = process.env.GREEN_API_INSTANCE_ID;
+  const greenToken = process.env.GREEN_API_TOKEN;
+  if (greenInstance && greenToken && playerPhone) {
+    try {
+      const url = `https://api.green-api.com/waInstance${greenInstance}/sendMessage/${greenToken}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: `${playerPhone}@c.us`,
+          message,
+        }),
+      });
+      console.log('Green-API automated WhatsApp dispatch from 9824751053:', res.status);
+    } catch (err) {
+      console.warn('Green-API dispatch error:', err.message);
     }
   }
 
@@ -678,7 +721,7 @@ async function handleBooking(request, response) {
 
     const whatsappMessage = generateWhatsAppMessage(booking);
     const playerPhone = formatWhatsAppPhone(booking.mobileNumber);
-    const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919876543210');
+    const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919824751053');
     const whatsappLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(whatsappMessage)}`;
     const academyLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(whatsappMessage)}`;
 
