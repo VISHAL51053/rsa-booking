@@ -37,17 +37,20 @@
         <div class="account-controls"><span class="signed-in" id="signed-in-username"></span><button class="icon-button" id="refresh-button" type="button" title="Refresh bookings" aria-label="Refresh bookings">↻</button><a class="text-button" id="qr-button" href="/qr-code.png" target="_blank" rel="noopener">Court QR Code</a><button class="text-button" id="workbook-button" type="button">Download Excel</button><button class="text-button" id="export-button" type="button">Export CSV</button><button class="text-button" id="logout-button" type="button">Sign out</button></div>
       </div>
 
+      <div class="storage-notice" id="storage-notice" hidden></div>
+
       <div class="summary-grid" aria-label="Booking summary">
         <article><span>Total bookings</span><strong id="total-bookings">0</strong><small>All reservations</small></article>
         <article><span>Upcoming bookings</span><strong id="upcoming-bookings">0</strong><small>Today and future</small></article>
         <article><span>Players booked</span><strong id="total-players">0</strong><small>Across all reservations</small></article>
-        <article><span>Recorded fees</span><strong id="total-fees">₹0</strong><small>From membership selections</small></article>
+        <article><span>Recorded fees</span><strong id="total-fees">₹0</strong><small>From court reservations</small></article>
       </div>
 
       <div class="list-heading"><div><h2>Reservation register</h2><span id="visible-count">0 records</span></div><div class="list-tools"><label class="search-field" for="admin-search"><span aria-hidden="true">⌕</span><input id="admin-search" type="search" placeholder="Search name, mobile, court or time"></label><select id="date-filter" aria-label="Filter bookings by date"><option value="all">All dates</option><option value="upcoming">Upcoming</option><option value="past">Past</option></select></div></div>
-      <div class="table-frame"><table class="booking-table"><thead><tr><th>PLAYER</th><th>MOBILE</th><th>DATE OF PLAY</th><th>TIME</th><th>COURT</th><th>PLAYERS</th><th>FEE</th></tr></thead><tbody id="admin-booking-rows"></tbody></table><div class="table-state" id="table-state" role="status"><span class="loading-mark" aria-hidden="true"></span><p>Loading bookings…</p></div></div>
+      <div class="table-frame"><table class="booking-table"><thead><tr><th>PLAYER</th><th>MOBILE</th><th>DATE OF PLAY</th><th>TIME</th><th>COURT</th><th>PLAYERS</th><th>FEE</th><th>BOOKED ON</th><th>ACTION</th></tr></thead><tbody id="admin-booking-rows"></tbody></table><div class="table-state" id="table-state" role="status"><span class="loading-mark" aria-hidden="true"></span><p>Loading bookings…</p></div></div>
       <p class="privacy-note"><span aria-hidden="true">●</span> Private admin view · Booking data is restricted to admins</p>
     </section>
   </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"><span>✓</span><div id="toast-message"></div></div>
 </body>
 </html>

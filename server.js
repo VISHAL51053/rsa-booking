@@ -427,9 +427,10 @@ async function readBookings() {
         feeINR = Number(excelCell(row, 9)) || 0;
       }
 
+      const submittedAt = String(excelCell(row, 1));
       rows.push({
-        id: String(rowNumber - 2),
-        submittedAt: String(excelCell(row, 1)),
+        id: submittedAt || String(rowNumber - 2),
+        submittedAt,
         playerName: String(excelCell(row, 2)),
         mobileNumber: String(excelCell(row, 3)),
         playDate: String(excelCell(row, 4)).slice(0, 10),
@@ -441,6 +442,53 @@ async function readBookings() {
       });
     });
     return rows.reverse();
+  });
+}
+
+async function deleteBooking(id) {
+  if (databasePool) {
+    await ensureDatabaseSchema();
+    const result = await databasePool.query(
+      `DELETE FROM public.bookings WHERE id::text = $1 OR submitted_at::text = $1 RETURNING id`,
+      [String(id)],
+    );
+    return result.rowCount > 0;
+  }
+
+  return withWorkbookLock(async () => {
+    const { workbook, worksheet, filePath } = await openBookingsWorkbook();
+    let targetRowNumber = -1;
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowId = String(excelCell(row, 1));
+      const rowIndex = String(rowNumber - 2);
+      if (rowId === String(id) || rowIndex === String(id)) {
+        targetRowNumber = rowNumber;
+      }
+    });
+
+    if (targetRowNumber > 1) {
+      worksheet.spliceRows(targetRowNumber, 1);
+      const existingRows = [];
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber < 2) return;
+        const values = workbookHeaders.map((_, index) => row.getCell(index + 1).value);
+        if (values.some((v) => v !== null && v !== undefined && v !== '')) existingRows.push(values);
+      });
+      try { worksheet.removeTable('Bookings'); } catch {}
+      worksheet.addTable({
+        name: 'Bookings',
+        ref: 'A1',
+        headerRow: true,
+        totalsRow: false,
+        style: { theme: 'TableStyleMedium4', showRowStripes: true },
+        columns: workbookHeaders.map((name) => ({ name })),
+        rows: existingRows,
+      });
+      await workbook.xlsx.writeFile(filePath);
+      return true;
+    }
+    return false;
   });
 }
 
@@ -531,6 +579,8 @@ async function handleAdminApi(request, response, pathname) {
       authenticated: Boolean(session),
       username: session?.username || '',
       loginConfigured,
+      persistent: Boolean(databasePool),
+      storageType: databasePool ? 'postgresql' : 'excel',
     });
   }
 
@@ -583,6 +633,26 @@ async function handleAdminApi(request, response, pathname) {
         code: error.code || 'UNKNOWN',
         backend: databasePool ? 'postgresql' : 'excel',
       });
+    }
+  }
+
+  if ((pathname === '/api/admin/bookings/delete' && request.method === 'POST') ||
+      (pathname === '/api/admin/bookings' && request.method === 'DELETE')) {
+    if (!requireSameOrigin(request)) return sendJson(response, 403, { error: 'Request not allowed.' });
+    if (!getAdminSession(request)) return sendJson(response, 401, { error: 'Please sign in as an academy administrator.' });
+
+    let body;
+    try { body = await readJson(request); } catch { return sendJson(response, 400, { error: 'Invalid delete request.' }); }
+    const id = body?.id;
+    if (id === undefined || id === null || id === '') return sendJson(response, 400, { error: 'Booking ID is required.' });
+
+    try {
+      const deleted = await deleteBooking(id);
+      if (!deleted) return sendJson(response, 404, { error: 'Booking not found.' });
+      return sendJson(response, 200, { ok: true, deletedId: id });
+    } catch (error) {
+      console.error('Failed to delete booking:', error);
+      return sendJson(response, 500, { error: 'Could not delete booking from storage.' });
     }
   }
 

@@ -48,6 +48,35 @@ function formatTime(value) {
   return String(value);
 }
 
+let toastTimer;
+function showToast(message, isError = false) {
+  const toast = document.querySelector('#toast');
+  const msgEl = document.querySelector('#toast-message');
+  if (!toast || !msgEl) return;
+  msgEl.textContent = message;
+  toast.classList.toggle('is-error', isError);
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), 4000);
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch {
+    return String(iso);
+  }
+}
+
 function addCell(row, className, value) {
   const cell = document.createElement('td');
   cell.className = className;
@@ -81,6 +110,39 @@ function renderRows() {
 
     addCell(row, '', String(booking.players));
     addCell(row, 'fee-value', `₹${new Intl.NumberFormat('en-IN').format(booking.feeINR)}`);
+    addCell(row, 'submitted-cell', formatDateTime(booking.submittedAt));
+
+    const actionCell = document.createElement('td');
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-action-btn';
+    deleteBtn.type = 'button';
+    deleteBtn.innerHTML = '🗑 Delete';
+    deleteBtn.title = `Delete booking for ${booking.playerName}`;
+    deleteBtn.addEventListener('click', async () => {
+      const confirmMsg = `Are you sure you want to delete the booking for ${booking.playerName} on ${formattedDate(booking.playDate)}?`;
+      if (!window.confirm(confirmMsg)) return;
+
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting…';
+      try {
+        const response = await fetch('/api/admin/bookings/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: booking.id }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Failed to delete booking.');
+        showToast(`Booking for ${booking.playerName} deleted.`);
+        await loadBookings();
+      } catch (err) {
+        showToast(err.message || 'Could not delete booking.', true);
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '🗑 Delete';
+      }
+    });
+    actionCell.append(deleteBtn);
+    row.append(actionCell);
+
     return row;
   }));
 
@@ -154,6 +216,19 @@ async function initializeAdmin() {
       loginView.hidden = true;
       dashboardView.hidden = false;
       document.querySelector('#signed-in-username').textContent = `Signed in as ${session.username}`;
+
+      const notice = document.querySelector('#storage-notice');
+      if (notice) {
+        notice.hidden = false;
+        if (session.persistent) {
+          notice.className = 'storage-notice is-safe';
+          notice.innerHTML = '<span>🔒 <strong>Data Safe & Permanent</strong>: Stored in PostgreSQL database. Bookings are preserved across all redeploys.</span>';
+        } else {
+          notice.className = 'storage-notice is-warning';
+          notice.innerHTML = '<span>⚠️ <strong>Storage Warning</strong>: Running on temporary Render disk. Add <code>DATABASE_URL</code> to Render Environment Variables so bookings are never erased on redeploy.</span>';
+        }
+      }
+
       await loadBookings();
       return;
     }
