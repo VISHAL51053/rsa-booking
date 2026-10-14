@@ -17,11 +17,15 @@ const bookingModal = document.querySelector('#booking-modal');
 const modalCloseBtn = document.querySelector('#modal-close-btn');
 const modalDoneBtn = document.querySelector('#modal-done-btn');
 const modalSummaryName = document.querySelector('#modal-summary-name');
+const modalSummaryMobile = document.querySelector('#modal-summary-mobile');
 const modalSummaryDate = document.querySelector('#modal-summary-date');
 const modalSummaryTime = document.querySelector('#modal-summary-time');
 const modalSummaryCourt = document.querySelector('#modal-summary-court');
 const modalSummaryPlayers = document.querySelector('#modal-summary-players');
 const modalSummaryFee = document.querySelector('#modal-summary-fee');
+const modalMessagePreview = document.querySelector('#whatsapp-message-preview');
+const copyMessageBtn = document.querySelector('#copy-message-btn');
+const copyBtnText = document.querySelector('#copy-btn-text');
 const modalWaBtn = document.querySelector('#modal-whatsapp-btn');
 const modalAcademyWaBtn = document.querySelector('#modal-academy-wa-btn');
 
@@ -53,6 +57,27 @@ function formatDisplayTime(timeStr) {
   return timeStr;
 }
 
+function formatAdminWhatsAppMessage(booking) {
+  const displayDate = formatDisplayDate(booking.playDate);
+  const displayTime = formatDisplayTime(booking.playTime);
+  const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR || (booking.players * 100));
+  const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
+
+  return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
+    `*COURT BOOKING DETAILS*\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `👤 *Player Name:* ${booking.playerName}\n` +
+    `📱 *Contact Number:* ${booking.mobileNumber}\n` +
+    `📅 *Date of Play:* ${displayDate}\n` +
+    `⏰ *Time Slot:* ${displayTime}\n` +
+    `🏟️ *Court:* ${booking.court}\n` +
+    `👥 *Number of Players:* ${playersText}\n` +
+    `💰 *Total Amount:* ₹${formattedFee} (₹100/player)\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `confirmation of booking slot. Thank you!\n` +
+    `— Sent by *${booking.playerName}*`;
+}
+
 function closeModal() {
   if (!bookingModal) return;
   bookingModal.classList.remove('is-visible');
@@ -63,14 +88,21 @@ function closeModal() {
 
 function showBookingSuccess(bookingData, whatsappData) {
   if (!bookingModal) return;
+  const messageText = whatsappData?.adminMessage || whatsappData?.message || formatAdminWhatsAppMessage(bookingData);
+  const academyTarget = whatsappData?.academyLink || whatsappData?.link || `https://wa.me/919842751053?text=${encodeURIComponent(messageText)}`;
+
   if (modalSummaryName) modalSummaryName.textContent = bookingData.playerName;
+  if (modalSummaryMobile) modalSummaryMobile.textContent = bookingData.mobileNumber || '—';
   if (modalSummaryDate) modalSummaryDate.textContent = formatDisplayDate(bookingData.playDate);
   if (modalSummaryTime) modalSummaryTime.textContent = formatDisplayTime(bookingData.playTime);
   if (modalSummaryCourt) modalSummaryCourt.textContent = bookingData.court;
   if (modalSummaryPlayers) modalSummaryPlayers.textContent = `${bookingData.players} Player${bookingData.players > 1 ? 's' : ''}`;
   if (modalSummaryFee) modalSummaryFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(bookingData.feeINR)}`;
 
-  const academyTarget = whatsappData?.academyLink || whatsappData?.link || 'https://wa.me/919842751053';
+  if (modalMessagePreview) {
+    modalMessagePreview.textContent = messageText;
+  }
+
   if (modalWaBtn) {
     modalWaBtn.href = academyTarget;
   }
@@ -93,6 +125,34 @@ function showBookingSuccess(bookingData, whatsappData) {
       console.warn('Popup blocked by browser; user can click WhatsApp button in modal.', popupErr);
     }
   }
+}
+
+if (copyMessageBtn) {
+  copyMessageBtn.addEventListener('click', async () => {
+    const textToCopy = modalMessagePreview?.textContent || '';
+    if (!textToCopy) return;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      if (copyBtnText) copyBtnText.textContent = 'Copied! ✓';
+      showToast('Pre-typed message copied to clipboard.');
+      setTimeout(() => {
+        if (copyBtnText) copyBtnText.textContent = 'Copy';
+      }, 2500);
+    } catch {
+      showToast('Could not copy automatically. You can select and copy the text.', true);
+    }
+  });
 }
 
 if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeModal);
@@ -196,9 +256,12 @@ form.addEventListener('submit', async (event) => {
       players: booking.players,
       feeINR: booking.players * 100,
     };
+    const fallbackMsg = formatAdminWhatsAppMessage(bookingResult);
     const waData = result.whatsapp || {
-      link: `https://wa.me/919842751053?text=${encodeURIComponent('Booking Confirmed')}`,
-      academyLink: `https://wa.me/919842751053?text=${encodeURIComponent('Booking Confirmed')}`,
+      message: fallbackMsg,
+      adminMessage: fallbackMsg,
+      link: `https://wa.me/919842751053?text=${encodeURIComponent(fallbackMsg)}`,
+      academyLink: `https://wa.me/919842751053?text=${encodeURIComponent(fallbackMsg)}`,
     };
 
     const bookingName = booking.playerName;

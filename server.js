@@ -224,20 +224,50 @@ function formatDisplayTime(timeStr) {
   return timeStr;
 }
 
-function generateWhatsAppMessage(booking) {
+function generateAdminBookingMessage(booking) {
   const displayDate = formatDisplayDate(booking.playDate);
   const displayTime = formatDisplayTime(booking.playTime);
   const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR);
+  const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
 
   return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
-    `*Booking Confirmation*\n\n` +
-    `Hello *${booking.playerName}*,\n\n` +
+    `*COURT BOOKING DETAILS*\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `👤 *Player Name:* ${booking.playerName}\n` +
+    `📱 *Contact Number:* ${booking.mobileNumber}\n` +
+    `📅 *Date of Play:* ${displayDate}\n` +
+    `⏰ *Time Slot:* ${displayTime}\n` +
+    `🏟️ *Court:* ${booking.court}\n` +
+    `👥 *Number of Players:* ${playersText}\n` +
+    `💰 *Total Amount:* ₹${formattedFee} (₹100/player)\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    `confirmation of booking slot. Thank you!\n` +
+    `— Sent by *${booking.playerName}*`;
+}
+
+function generatePlayerConfirmationMessage(booking) {
+  const displayDate = formatDisplayDate(booking.playDate);
+  const displayTime = formatDisplayTime(booking.playTime);
+  const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR);
+  const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
+
+  return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
+    `*Court Booking Confirmation*\n\n` +
+    `Dear *${booking.playerName}*,\n\n` +
+    `Thank you for booking with Rainbow Sports Academy! Your court session has been reserved:\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
     `📅 *Date:* ${displayDate}\n` +
     `⏰ *Time:* ${displayTime}\n` +
     `🏟️ *Court:* ${booking.court}\n` +
-    `👥 *Players:* ${booking.players}\n` +
-    `💰 *Amount:* ₹${formattedFee} (₹100/player)`;
+    `👥 *Players:* ${playersText}\n` +
+    `💰 *Total Fee:* ₹${formattedFee} (₹100/player)\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `📍 *Venue:* Rainbow Sports Academy\n` +
+    `📞 *Enquiries / Admin:* +91 98427 51053\n\n` +
+    `We look forward to seeing you on the court!`;
 }
+
+const generateWhatsAppMessage = generateAdminBookingMessage;
 
 async function sendAutomatedWhatsApp(booking, message) {
   const webhookUrl = process.env.WHATSAPP_WEBHOOK_URL;
@@ -732,15 +762,16 @@ async function handleBooking(request, response) {
   try {
     await appendBooking(booking);
 
-    const whatsappMessage = generateWhatsAppMessage(booking);
+    const adminMessage = generateAdminBookingMessage(booking);
+    const playerMessage = generatePlayerConfirmationMessage(booking);
     const playerPhone = formatWhatsAppPhone(booking.mobileNumber);
     const academyPhone = formatWhatsAppPhone(process.env.ACADEMY_WHATSAPP_PHONE || '919842751053');
-    const academyLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(whatsappMessage)}`;
-    const playerLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(whatsappMessage)}`;
-    // Default link for auto-open and primary button: Academy WhatsApp (9842751053)
+    const academyLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(adminMessage)}`;
+    const playerLink = `https://wa.me/${playerPhone}?text=${encodeURIComponent(playerMessage)}`;
+    // Default link for auto-open and primary button: Academy WhatsApp (9842751053) with pre-typed message from customer
     const whatsappLink = academyLink;
 
-    sendAutomatedWhatsApp(booking, whatsappMessage).catch((e) => {
+    sendAutomatedWhatsApp(booking, playerMessage).catch((e) => {
       console.warn('Background WhatsApp automated dispatch notice:', e.message);
     });
 
@@ -758,7 +789,9 @@ async function handleBooking(request, response) {
         submittedAt: booking.submittedAt,
       },
       whatsapp: {
-        message: whatsappMessage,
+        message: adminMessage,
+        adminMessage,
+        playerMessage,
         playerPhone,
         academyPhone,
         link: whatsappLink,
