@@ -40,217 +40,59 @@
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
-/* Upfront Free Direct UPI Box on Booking Form */
-.upfront-upi-card {
-  margin-top: 4px;
-  padding: 16px;
+/* Clean WhatsApp Pay Card */
+.whatsapp-pay-card {
+  margin-top: 6px;
+  padding: 14px 16px;
   border-radius: 8px;
-  background: #f8fafc;
-  border: 1.5px solid #cbd5e1;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
 }
 
-.upfront-upi-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.upi-live-tag {
-  display: inline-block;
-  font-size: 10px;
+.whatsapp-pay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.05em;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: #e0e7ff;
-  color: #3730a3;
-  border: 1px solid #c7d2fe;
-  margin-bottom: 4px;
+  color: #166534;
+  letter-spacing: 0.04em;
 }
 
-.upfront-upi-header strong {
+.whatsapp-pay-badge svg {
+  color: #16a34a;
+}
+
+.whatsapp-pay-text strong {
   display: block;
-  font-size: 15px;
-  color: #0f172a;
+  font-size: 14px;
+  color: #14532d;
+  margin-bottom: 2px;
 }
 
-.upfront-upi-header p {
-  margin: 3px 0 0 0;
+.whatsapp-pay-text p {
+  margin: 0;
   font-size: 12px;
-  color: #64748b;
+  color: #166534;
+  line-height: 1.5;
 }
 
-.upfront-fee-pill {
+.whatsapp-fee-tag {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #174a3a;
-  color: #ffffff;
-  padding: 6px 14px;
-  border-radius: 6px;
+  justify-content: space-between;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px dashed #bbf7d0;
   font-size: 13px;
+  color: #14532d;
 }
 
-.upfront-fee-pill strong {
-  font-size: 16px;
-  color: #c4e85b;
-}
-
-.upfront-upi-body {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: #ffffff;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  flex-wrap: wrap;
-}
-
-.upfront-qr-wrap {
-  width: 130px;
-  height: 130px;
-  background: #ffffff;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.upfront-qr-wrap img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.upfront-upi-info {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-width: 180px;
-}
-
-.upi-kv {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #334155;
-}
-
-.upi-kv code {
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 13px;
-  background: #f1f5f9;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #0f172a;
-}
-
-.copy-upi-btn {
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 4px;
-  border: 1px solid #94a3b8;
-  background: #f8fafc;
-  color: #1e293b;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.copy-upi-btn:hover {
-  background: #e2e8f0;
-  border-color: #64748b;
-}
-
-.upi-app-buttons-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-top: 8px;
-}
-
-.app-direct-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 9px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
-}
-
-.gpay-btn {
-  background: #ffffff;
-  color: #1f2937 !important;
-  border: 1.5px solid #d1d5db;
-}
-
-.gpay-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.phonepe-btn {
-  background: #5f259f;
-  color: #ffffff !important;
-}
-
-.phonepe-btn:hover {
-  background: #4d1d82;
-}
-
-.paytm-btn {
-  background: #00b9f5;
-  color: #ffffff !important;
-}
-
-.paytm-btn:hover {
-  background: #009ecd;
-}
-
-.upfront-utr-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.upfront-utr-field label {
-  display: flex;
-  flex-direction: column;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.upfront-utr-field label small {
-  font-weight: 400;
-  color: #64748b;
-  font-size: 11px;
-}
-
-.upfront-utr-field input {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  font-size: 13px;
-  font-family: monospace;
-  outline: none;
-}
-
-.upfront-utr-field input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+.whatsapp-fee-tag strong {
+  font-size: 17px;
+  color: #15803d;
+  font-weight: 800;
 }

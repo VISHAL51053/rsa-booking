@@ -69,59 +69,23 @@
                 </div></fieldset>
                 <div class="field wide player-count-field"><div><label for="player-count">Number of players <b>*</b></label><small>How many are joining? (₹100/player)</small></div><div class="stepper"><button type="button" id="decrease-players" aria-label="Remove one player">−</button><input id="player-count" name="players" type="number" min="1" max="20" value="2" inputmode="numeric" required><button type="button" id="increase-players" aria-label="Add one player">+</button></div><small class="field-error" id="players-error"></small></div>
 
-                <!-- Upfront UPI Payment Box on Booking Form -->
-                <div class="field wide upfront-upi-card">
-                  <div class="upfront-upi-header">
-                    <div>
-                      <span class="upi-live-tag">FREE DIRECT UPI PAYMENT (0% FEE)</span>
-                      <strong>Pay via UPI to Confirm Slot</strong>
-                      <p>Scan with any UPI App (GPay, PhonePe, Paytm, BHIM) or tap button on mobile</p>
-                    </div>
-                    <div class="upfront-fee-pill">
-                      <span>Total Fee:</span>
-                      <strong id="form-total-fee">₹200</strong>
-                    </div>
+                <!-- WhatsApp Pay Notice Card -->
+                <div class="field wide whatsapp-pay-card">
+                  <div class="whatsapp-pay-badge">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.888 9.885m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    <span>WHATSAPP PAYMENT</span>
                   </div>
-
-                  <div class="upfront-upi-body">
-                    <div class="upfront-qr-wrap">
-                      <img id="form-upi-qr" src="/phonepe-qr.png" alt="PhonePe QR Code" width="130" height="130">
-                    </div>
-                    <div class="upfront-upi-info">
-                      <div class="upi-kv">
-                        <span>UPI ID:</span>
-                        <code id="form-upi-id-text">9824751053-2@ybl</code>
-                        <button type="button" id="copy-upi-id-btn" class="copy-upi-btn" title="Copy UPI ID">Copy UPI ID</button>
-                      </div>
-                      <div class="upi-kv">
-                        <span>Payee:</span>
-                        <b id="form-upi-name-text">VISWANATHAN S</b>
-                      </div>
-
-                      <div class="upi-app-buttons-grid">
-                        <a id="pay-gpay-btn" class="app-direct-btn gpay-btn" href="upi://pay?pa=9824751053-2@ybl&pn=VISWANATHAN%20S&am=200&cu=INR">
-                          <span>Pay with Google Pay</span>
-                        </a>
-                        <a id="pay-phonepe-btn" class="app-direct-btn phonepe-btn" href="phonepe://pay?pa=9824751053-2@ybl&pn=VISWANATHAN%20S&am=200&cu=INR">
-                          <span>Pay with PhonePe</span>
-                        </a>
-                        <a id="pay-paytm-btn" class="app-direct-btn paytm-btn" href="paytmmp://pay?pa=9824751053-2@ybl&pn=VISWANATHAN%20S&am=200&cu=INR">
-                          <span>Pay with Paytm</span>
-                        </a>
-                      </div>
-                    </div>
+                  <div class="whatsapp-pay-text">
+                    <strong>Pay directly via WhatsApp to Academy Admin</strong>
+                    <p>On clicking Confirm Booking, you will send your court reservation details & pay directly to <b>+91 98427 51053</b> using WhatsApp Pay or UPI in chat.</p>
                   </div>
-
-                  <div class="upfront-utr-field">
-                    <label for="form-payment-utr">
-                      <span>UPI Reference / UTR Number (Optional):</span>
-                      <small>Enter the 12-digit UTR from your payment receipt</small>
-                    </label>
-                    <input id="form-payment-utr" name="paymentUtr" type="text" placeholder="e.g. 432156789012" maxlength="30" inputmode="numeric">
+                  <div class="whatsapp-fee-tag">
+                    <span>Total Payable:</span>
+                    <strong id="form-total-fee">₹200</strong>
                   </div>
                 </div>
               </div>
-              <div class="form-footer"><p><i>i</i>Your booking details are sent to the academy.</p><button class="submit-button" type="submit">Confirm booking <span>↗</span></button></div>
+              <div class="form-footer"><p><i>i</i>Your booking details are sent directly to WhatsApp.</p><button class="submit-button" type="submit">Confirm &amp; Pay on WhatsApp <span>↗</span></button></div>
             </form>
           </div>
           <aside class="club-aside"><div class="aside-label">READY WHEN YOU ARE <span>✳</span></div><h2>Good games<br>start with a<br><em>good plan.</em></h2><p>Pick your court, bring your people, and we'll take care of the rest.</p><div class="court-art" aria-hidden="true"><span class="shuttle"></span></div><div class="aside-footer"><i></i>Court one <span>/</span> Court two</div></aside>
@@ -170,43 +134,6 @@
         <div class="summary-item highlight-fee">
           <span class="summary-label">Total Amount</span>
           <span class="summary-fee-amount" id="modal-summary-fee">₹0</span>
-        </div>
-      </div>
-
-      <!-- Free UPI Payment Section -->
-      <div class="upi-payment-section">
-        <div class="upi-payment-header">
-          <span class="upi-badge">FREE &amp; DIRECT UPI</span>
-          <h3>Pay via UPI (0% Extra Fee)</h3>
-          <p>Scan the QR code or tap to pay directly using any UPI App</p>
-        </div>
-
-        <div class="upi-qr-box">
-          <img id="upi-qr-image" class="upi-qr-image" src="/phonepe-qr.png" alt="Scan PhonePe QR" width="180" height="180">
-          <div class="upi-vpa-details">
-            <span class="upi-vpa-label">UPI ID:</span>
-            <code id="upi-vpa-text" class="upi-vpa-text">9824751053-2@ybl</code>
-            <span class="upi-payee-text">Payee: <b id="upi-payee-name">VISWANATHAN S</b></span>
-          </div>
-        </div>
-
-        <div class="upi-mobile-pay">
-          <a id="upi-direct-pay-btn" class="upi-intent-btn" href="#">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-            <span>Open UPI App (GPay / PhonePe / Paytm)</span>
-          </a>
-        </div>
-
-        <div class="upi-utr-input-card">
-          <label for="upi-utr-input">
-            <b>Enter UPI Reference / UTR Number (Optional):</b>
-            <small>Found in your UPI payment receipt (12-digit number)</small>
-          </label>
-          <div class="upi-utr-input-group">
-            <input id="upi-utr-input" type="text" placeholder="e.g. 432156789012" maxlength="30" inputmode="numeric">
-            <button type="button" id="upi-submit-utr-btn" class="upi-submit-utr-btn">Submit UTR</button>
-          </div>
-          <small id="upi-utr-feedback" class="upi-utr-feedback"></small>
         </div>
       </div>
 

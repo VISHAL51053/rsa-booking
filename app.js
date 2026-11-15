@@ -133,7 +133,6 @@ function formatAdminWhatsAppMessage(booking) {
   const displayTime = formatDisplayTime(booking.playTime);
   const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR || (booking.players * 100));
   const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
-  const utrLine = booking.paymentUtr ? `💳 *UPI Ref / UTR:* \`${booking.paymentUtr}\`\n` : `💳 *Payment Method:* Free Direct UPI\n`;
 
   return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
     `*COURT BOOKING DETAILS*\n\n` +
@@ -145,9 +144,9 @@ function formatAdminWhatsAppMessage(booking) {
     `🏟️ *Court:* ${booking.court}\n` +
     `👥 *Number of Players:* ${playersText}\n` +
     `💰 *Total Amount:* ₹${formattedFee} (₹100/player)\n` +
-    utrLine +
+    `💬 *Payment Mode:* WhatsApp Pay / UPI in Chat\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `Please find the UPI payment details for court slot confirmation. Thank you!\n` +
+    `I would like to confirm my booking slot and complete payment via WhatsApp. Thank you!\n` +
     `— Sent by *${booking.playerName}*`;
 }
 
