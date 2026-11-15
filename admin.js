@@ -132,6 +132,56 @@ function renderRows() {
 
     addCell(row, '', String(booking.players));
     addCell(row, 'fee-value', `₹${new Intl.NumberFormat('en-IN').format(booking.feeINR)}`);
+
+    // UPI Reference / UTR Cell
+    const utrCell = document.createElement('td');
+    utrCell.className = 'utr-cell';
+    if (booking.paymentUtr) {
+      const utrCode = document.createElement('code');
+      utrCode.textContent = booking.paymentUtr;
+      utrCell.append(utrCode);
+    } else {
+      utrCell.innerHTML = '<span class="muted-text">—</span>';
+    }
+    row.append(utrCell);
+
+    // Status Cell with click-to-toggle
+    const statusCell = document.createElement('td');
+    const statusBadge = document.createElement('span');
+    const isPaid = (booking.paymentStatus || '').toLowerCase().includes('paid');
+    statusBadge.className = `status-pill ${isPaid ? 'is-paid' : 'is-pending'}`;
+    statusBadge.textContent = isPaid ? '✓ Paid' : 'Pending';
+    statusBadge.title = 'Click to toggle Paid / Pending';
+    statusBadge.style.cursor = 'pointer';
+    statusBadge.addEventListener('click', async () => {
+      const nextStatus = isPaid ? 'Pending' : 'Paid';
+      statusBadge.textContent = '…';
+      try {
+        const res = await fetch('/api/admin/bookings/payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: booking.id,
+            paymentUtr: booking.paymentUtr || '',
+            paymentStatus: nextStatus,
+          }),
+        });
+        if (res.ok) {
+          booking.paymentStatus = nextStatus;
+          renderRows();
+          showToast(`Status updated to ${nextStatus}.`);
+        } else {
+          showToast('Failed to update payment status.', true);
+          renderRows();
+        }
+      } catch {
+        showToast('Error updating status.', true);
+        renderRows();
+      }
+    });
+    statusCell.append(statusBadge);
+    row.append(statusCell);
+
     addCell(row, 'submitted-cell', formatDateTime(booking.submittedAt));
 
     const actionCell = document.createElement('td');
@@ -218,8 +268,8 @@ async function loadBookings() {
 }
 
 function downloadCsv() {
-  const columns = ['Player name', 'Mobile number', 'Date of play', 'Time of play', 'Court', 'Players', 'Fee INR', 'Submitted at'];
-  const rows = bookings.map((booking) => [booking.playerName, booking.mobileNumber, booking.playDate, formatTime(booking.playTime), booking.court, booking.players, booking.feeINR, booking.submittedAt]);
+  const columns = ['Player name', 'Mobile number', 'Date of play', 'Time of play', 'Court', 'Players', 'Fee INR', 'UPI UTR', 'Status', 'Submitted at'];
+  const rows = bookings.map((booking) => [booking.playerName, booking.mobileNumber, booking.playDate, formatTime(booking.playTime), booking.court, booking.players, booking.feeINR, booking.paymentUtr || '', booking.paymentStatus || 'Pending', booking.submittedAt]);
   const csv = [columns, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');

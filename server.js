@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const QRCode = require('qrcode');
 const ExcelJS = require('exceljs');
 const { Pool, types } = require('pg');
 if (types && typeof types.setTypeParser === 'function') {
@@ -49,7 +50,7 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception caught:', err);
 });
 const workbookPath = path.resolve(root, process.env.BOOKINGS_WORKBOOK_PATH || 'data/bookings.xlsx');
-const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'PlayTime', 'Court', 'Membership', 'Players', 'FeeINR'];
+const workbookHeaders = ['SubmittedAt', 'PlayerName', 'MobileNumber', 'PlayDate', 'PlayTime', 'Court', 'Membership', 'Players', 'FeeINR', 'PaymentUTR', 'PaymentStatus'];
 const rates = { 'One-day': 100, Weekly: 500, Monthly: 1000 };
 const publicFiles = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -175,6 +176,9 @@ function validateBooking(value) {
   const playTime = typeof value.playTime === 'string' ? value.playTime.trim().slice(0, 20) : '';
   if (!playTime || playTime.length < 3) return null;
 
+  const paymentUtr = typeof value.paymentUtr === 'string' ? value.paymentUtr.trim().slice(0, 50) : '';
+  const paymentStatus = paymentUtr ? 'Paid (UTR Submitted)' : (typeof value.paymentStatus === 'string' ? value.paymentStatus.trim().slice(0, 30) : 'Pending Verification');
+
   const feeINR = rates[membership] * (membership === 'One-day' ? players : 1);
   return {
     submittedAt: new Date().toISOString(),
@@ -186,6 +190,8 @@ function validateBooking(value) {
     membership,
     players,
     feeINR,
+    paymentUtr,
+    paymentStatus,
   };
 }
 
@@ -229,6 +235,7 @@ function generateAdminBookingMessage(booking) {
   const displayTime = formatDisplayTime(booking.playTime);
   const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR);
   const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
+  const utrLine = booking.paymentUtr ? `💳 *UPI Ref / UTR:* \`${booking.paymentUtr}\`\n` : `💳 *Payment Method:* Free Direct UPI\n`;
 
   return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
     `*COURT BOOKING DETAILS*\n\n` +
@@ -240,8 +247,9 @@ function generateAdminBookingMessage(booking) {
     `🏟️ *Court:* ${booking.court}\n` +
     `👥 *Number of Players:* ${playersText}\n` +
     `💰 *Total Amount:* ₹${formattedFee} (₹100/player)\n` +
+    utrLine +
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `confirmation of booking slot. Thank you!\n` +
+    `Please find the UPI payment details for court slot confirmation. Thank you!\n` +
     `— Sent by *${booking.playerName}*`;
 }
 
@@ -250,6 +258,7 @@ function generatePlayerConfirmationMessage(booking) {
   const displayTime = formatDisplayTime(booking.playTime);
   const formattedFee = new Intl.NumberFormat('en-IN').format(booking.feeINR);
   const playersText = `${booking.players} Player${booking.players > 1 ? 's' : ''}`;
+  const utrLine = booking.paymentUtr ? `💳 *UPI Ref / UTR:* \`${booking.paymentUtr}\`\n` : '';
 
   return `🏸 *RAINBOW SPORTS ACADEMY* 🏸\n` +
     `*Court Booking Confirmation*\n\n` +
@@ -261,6 +270,7 @@ function generatePlayerConfirmationMessage(booking) {
     `🏟️ *Court:* ${booking.court}\n` +
     `👥 *Players:* ${playersText}\n` +
     `💰 *Total Fee:* ₹${formattedFee} (₹100/player)\n` +
+    utrLine +
     `━━━━━━━━━━━━━━━━━━━━\n\n` +
     `📍 *Venue:* Rainbow Sports Academy\n` +
     `📞 *Enquiries / Admin:* +91 98427 51053\n\n` +
@@ -410,9 +420,13 @@ async function ensureDatabaseSchema() {
           court TEXT NOT NULL CHECK (court IN ('Court 1', 'Court 2')),
           membership TEXT NOT NULL CHECK (membership IN ('One-day', 'Weekly', 'Monthly')),
           players INTEGER NOT NULL CHECK (players BETWEEN 1 AND 20),
-          fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0)
+          fee_inr INTEGER NOT NULL CHECK (fee_inr >= 0),
+          payment_utr TEXT DEFAULT '',
+          payment_status TEXT DEFAULT 'Pending'
         );
         ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS play_time TEXT DEFAULT '';
+        ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_utr TEXT DEFAULT '';
+        ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Pending';
       `);
       try {
         await databasePool.query(`
@@ -528,15 +542,20 @@ async function openBookingsWorkbook() {
 
 async function appendBooking(booking) {
   if (databasePool) {
-    await ensureDatabaseSchema();
-    await databasePool.query(
-      `INSERT INTO public.bookings
-        (submitted_at, player_name, mobile_number, play_date, play_time, court, membership, players, fee_inr)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [booking.submittedAt, booking.playerName, booking.mobileNumber, booking.playDate,
-        booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR],
-    );
-    return;
+    try {
+      await ensureDatabaseSchema();
+      await databasePool.query(
+        `INSERT INTO public.bookings
+          (submitted_at, player_name, mobile_number, play_date, play_time, court, membership, players, fee_inr, payment_utr, payment_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [booking.submittedAt, booking.playerName, booking.mobileNumber, booking.playDate,
+          booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR,
+          booking.paymentUtr || '', booking.paymentStatus || 'Pending'],
+      );
+      return;
+    } catch (dbErr) {
+      console.warn('PostgreSQL database write failed. Falling back seamlessly to local Excel storage:', dbErr.message);
+    }
   }
 
   return withWorkbookLock(async () => {
@@ -551,6 +570,8 @@ async function appendBooking(booking) {
       booking.membership,
       booking.players,
       booking.feeINR,
+      booking.paymentUtr || '',
+      booking.paymentStatus || 'Pending',
     ]);
     table.commit();
     await workbook.xlsx.writeFile(filePath);
@@ -582,24 +603,30 @@ function normalizeDateString(dateVal) {
 
 async function readBookings() {
   if (databasePool) {
-    await ensureDatabaseSchema();
-    const result = await databasePool.query(
-      `SELECT id, submitted_at, player_name, mobile_number, play_date, COALESCE(play_time, '') as play_time, court, membership, players, fee_inr
-       FROM public.bookings
-       ORDER BY submitted_at DESC, id DESC`,
-    );
-    return result.rows.map((row) => ({
-      id: String(row.id),
-      submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
-      playerName: row.player_name,
-      mobileNumber: row.mobile_number,
-      playDate: normalizeDateString(row.play_date),
-      playTime: row.play_time || '',
-      court: row.court,
-      membership: row.membership,
-      players: Number(row.players),
-      feeINR: Number(row.fee_inr),
-    }));
+    try {
+      await ensureDatabaseSchema();
+      const result = await databasePool.query(
+        `SELECT id, submitted_at, player_name, mobile_number, play_date, COALESCE(play_time, '') as play_time, court, membership, players, fee_inr, COALESCE(payment_utr, '') as payment_utr, COALESCE(payment_status, 'Pending') as payment_status
+         FROM public.bookings
+         ORDER BY submitted_at DESC, id DESC`,
+      );
+      return result.rows.map((row) => ({
+        id: String(row.id),
+        submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
+        playerName: row.player_name,
+        mobileNumber: row.mobile_number,
+        playDate: normalizeDateString(row.play_date),
+        playTime: row.play_time || '',
+        court: row.court,
+        membership: row.membership,
+        players: Number(row.players),
+        feeINR: Number(row.fee_inr),
+        paymentUtr: row.payment_utr || '',
+        paymentStatus: row.payment_status || 'Pending',
+      }));
+    } catch (readErr) {
+      console.warn('PostgreSQL database read failed. Falling back to local Excel storage:', readErr.message);
+    }
   }
 
   return withWorkbookLock(async () => {
@@ -613,6 +640,8 @@ async function readBookings() {
       let membership = '';
       let players = 0;
       let feeINR = 0;
+      let paymentUtr = '';
+      let paymentStatus = 'Pending';
 
       if (col5 === 'Court 1' || col5 === 'Court 2') {
         // Legacy 8-column format without PlayTime
@@ -621,12 +650,14 @@ async function readBookings() {
         players = Number(excelCell(row, 7)) || 0;
         feeINR = Number(excelCell(row, 8)) || 0;
       } else {
-        // 9-column format with PlayTime
+        // 9-column or 11-column format with PlayTime
         playTime = col5;
         court = String(excelCell(row, 6));
         membership = String(excelCell(row, 7));
         players = Number(excelCell(row, 8)) || 0;
         feeINR = Number(excelCell(row, 9)) || 0;
+        paymentUtr = String(excelCell(row, 10) || '');
+        paymentStatus = String(excelCell(row, 11) || 'Pending');
       }
 
       const submittedAt = String(excelCell(row, 1));
@@ -641,6 +672,8 @@ async function readBookings() {
         membership,
         players,
         feeINR,
+        paymentUtr,
+        paymentStatus,
       });
     });
     return rows.reverse();
@@ -694,6 +727,39 @@ async function deleteBooking(id) {
   });
 }
 
+async function updateBookingPayment(id, paymentUtr, paymentStatus) {
+  if (databasePool) {
+    await ensureDatabaseSchema();
+    const result = await databasePool.query(
+      `UPDATE public.bookings 
+       SET payment_utr = $1, payment_status = $2 
+       WHERE id::text = $3 OR submitted_at::text = $3 
+       RETURNING id`,
+      [paymentUtr, paymentStatus, String(id)],
+    );
+    return result.rowCount > 0;
+  }
+
+  return withWorkbookLock(async () => {
+    const { workbook, worksheet, filePath } = await openBookingsWorkbook();
+    let updated = false;
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const subAt = String(excelCell(row, 1));
+      const rowId = subAt || String(rowNumber - 2);
+      if (rowId === String(id)) {
+        row.getCell(10).value = paymentUtr;
+        row.getCell(11).value = paymentStatus;
+        updated = true;
+      }
+    });
+    if (updated) {
+      await workbook.xlsx.writeFile(filePath);
+    }
+    return updated;
+  });
+}
+
 async function exportWorkbook(response) {
   let buffer;
   if (databasePool) {
@@ -708,7 +774,8 @@ async function exportWorkbook(response) {
       style: { theme: 'TableStyleMedium4', showRowStripes: true },
       columns: workbookHeaders.map((name) => ({ name })),
       rows: rows.map((booking) => [booking.submittedAt, booking.playerName, booking.mobileNumber,
-        booking.playDate, booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR]),
+        booking.playDate, booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR,
+        booking.paymentUtr || '', booking.paymentStatus || 'Pending']),
     });
     buffer = await workbook.xlsx.writeBuffer();
   } else {
@@ -775,6 +842,17 @@ async function handleBooking(request, response) {
       console.warn('Background WhatsApp automated dispatch notice:', e.message);
     });
 
+    const upiId = (process.env.ACADEMY_UPI_ID || '9824751053-2@ybl').trim();
+    const upiName = (process.env.ACADEMY_UPI_NAME || 'viswanathan s').trim();
+    const upiNote = `RSA Court Booking - ${booking.playerName}`;
+    const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${booking.feeINR}&cu=INR&tn=${encodeURIComponent(upiNote)}`;
+    let upiQrDataUrl = '';
+    try {
+      upiQrDataUrl = await QRCode.toDataURL(upiLink, { margin: 1, width: 280 });
+    } catch (qrErr) {
+      console.warn('QR code generation notice:', qrErr.message);
+    }
+
     return sendJson(response, 201, {
       ok: true,
       booking: {
@@ -787,6 +865,16 @@ async function handleBooking(request, response) {
         players: booking.players,
         feeINR: booking.feeINR,
         submittedAt: booking.submittedAt,
+        paymentUtr: booking.paymentUtr,
+        paymentStatus: booking.paymentStatus,
+      },
+      upi: {
+        id: upiId,
+        name: upiName,
+        amount: booking.feeINR,
+        note: upiNote,
+        link: upiLink,
+        qrDataUrl: upiQrDataUrl,
       },
       whatsapp: {
         message: adminMessage,
@@ -895,6 +983,27 @@ async function handleAdminApi(request, response, pathname) {
     }
   }
 
+  if (pathname === '/api/admin/bookings/payment' && request.method === 'POST') {
+    if (!requireSameOrigin(request)) return sendJson(response, 403, { error: 'Request not allowed.' });
+    if (!getAdminSession(request)) return sendJson(response, 401, { error: 'Please sign in as an academy administrator.' });
+
+    let body;
+    try { body = await readJson(request); } catch { return sendJson(response, 400, { error: 'Invalid update request.' }); }
+    const id = body?.id;
+    const utr = typeof body?.paymentUtr === 'string' ? body.paymentUtr.trim() : '';
+    const status = typeof body?.paymentStatus === 'string' ? body.paymentStatus.trim() : 'Paid';
+    if (!id) return sendJson(response, 400, { error: 'Booking ID is required.' });
+
+    try {
+      const updated = await updateBookingPayment(id, utr, status);
+      if (!updated) return sendJson(response, 404, { error: 'Booking not found.' });
+      return sendJson(response, 200, { ok: true, id, paymentUtr: utr, paymentStatus: status });
+    } catch (error) {
+      console.error('Failed to update booking payment status:', error);
+      return sendJson(response, 500, { error: 'Could not update payment status.' });
+    }
+  }
+
   if (pathname === '/api/admin/workbook' && request.method === 'GET') {
     if (!getAdminSession(request)) return sendJson(response, 401, { error: 'Please sign in as an academy administrator.' });
     try {
@@ -946,6 +1055,11 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/favicon.ico') {
       response.writeHead(204, { 'cache-control': 'public, max-age=86400' });
       return response.end();
+    }
+    if (pathname === '/api/upi/config' && request.method === 'GET') {
+      const upiId = (process.env.ACADEMY_UPI_ID || '9824751053-2@ybl').trim();
+      const upiName = (process.env.ACADEMY_UPI_NAME || 'viswanathan s').trim();
+      return sendJson(response, 200, { ok: true, upiId, upiName });
     }
     if (pathname === '/api/bookings') return await handleBooking(request, response);
     if (pathname.startsWith('/api/admin/')) return await handleAdminApi(request, response, pathname);

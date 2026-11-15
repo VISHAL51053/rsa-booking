@@ -68,6 +68,49 @@
                   <label class="court-option"><input type="radio" name="court" value="Court 2"><span class="court-choice"><span class="court-top">Court 02<span class="radio-dot"></span></span><span class="court-diagram"><i></i></span><span class="court-bottom">Badminton court <span>Select</span></span></span></label>
                 </div></fieldset>
                 <div class="field wide player-count-field"><div><label for="player-count">Number of players <b>*</b></label><small>How many are joining? (₹100/player)</small></div><div class="stepper"><button type="button" id="decrease-players" aria-label="Remove one player">−</button><input id="player-count" name="players" type="number" min="1" max="20" value="2" inputmode="numeric" required><button type="button" id="increase-players" aria-label="Add one player">+</button></div><small class="field-error" id="players-error"></small></div>
+
+                <!-- Upfront UPI Payment Box on Booking Form -->
+                <div class="field wide upfront-upi-card">
+                  <div class="upfront-upi-header">
+                    <div>
+                      <span class="upi-live-tag">FREE DIRECT UPI PAYMENT (0% FEE)</span>
+                      <strong>Pay via UPI to Confirm Slot</strong>
+                      <p>Scan with any UPI App (GPay, PhonePe, Paytm, BHIM) or tap button on mobile</p>
+                    </div>
+                    <div class="upfront-fee-pill">
+                      <span>Total Fee:</span>
+                      <strong id="form-total-fee">₹200</strong>
+                    </div>
+                  </div>
+
+                  <div class="upfront-upi-body">
+                    <div class="upfront-qr-wrap">
+                      <img id="form-upi-qr" src="" alt="UPI Payment QR Code" width="130" height="130">
+                    </div>
+                    <div class="upfront-upi-info">
+                      <div class="upi-kv">
+                        <span>UPI ID:</span>
+                        <code>9824751053-2@ybl</code>
+                      </div>
+                      <div class="upi-kv">
+                        <span>Payee:</span>
+                        <b>viswanathan s</b>
+                      </div>
+                      <a id="form-upi-mobile-link" class="upfront-mobile-pay-btn" href="upi://pay?pa=9824751053-2@ybl&pn=viswanathan%20s&am=200&cu=INR&tn=RSA%20Court%20Booking">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                        <span>Pay via UPI App (GPay / PhonePe)</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="upfront-utr-field">
+                    <label for="form-payment-utr">
+                      <span>UPI Reference / UTR Number (Optional):</span>
+                      <small>Enter the 12-digit UTR from your payment receipt</small>
+                    </label>
+                    <input id="form-payment-utr" name="paymentUtr" type="text" placeholder="e.g. 432156789012" maxlength="30" inputmode="numeric">
+                  </div>
+                </div>
               </div>
               <div class="form-footer"><p><i>i</i>Your booking details are sent to the academy.</p><button class="submit-button" type="submit">Confirm booking <span>↗</span></button></div>
             </form>
@@ -118,6 +161,43 @@
         <div class="summary-item highlight-fee">
           <span class="summary-label">Total Amount</span>
           <span class="summary-fee-amount" id="modal-summary-fee">₹0</span>
+        </div>
+      </div>
+
+      <!-- Free UPI Payment Section -->
+      <div class="upi-payment-section">
+        <div class="upi-payment-header">
+          <span class="upi-badge">FREE &amp; DIRECT UPI</span>
+          <h3>Pay via UPI (0% Extra Fee)</h3>
+          <p>Scan the QR code or tap to pay directly using any UPI App</p>
+        </div>
+
+        <div class="upi-qr-box">
+          <img id="upi-qr-image" class="upi-qr-image" src="" alt="Scan to pay via UPI" width="180" height="180">
+          <div class="upi-vpa-details">
+            <span class="upi-vpa-label">UPI ID:</span>
+            <code id="upi-vpa-text" class="upi-vpa-text">9824751053-2@ybl</code>
+            <span class="upi-payee-text">Payee: <b id="upi-payee-name">viswanathan s</b></span>
+          </div>
+        </div>
+
+        <div class="upi-mobile-pay">
+          <a id="upi-direct-pay-btn" class="upi-intent-btn" href="#">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            <span>Open UPI App (GPay / PhonePe / Paytm)</span>
+          </a>
+        </div>
+
+        <div class="upi-utr-input-card">
+          <label for="upi-utr-input">
+            <b>Enter UPI Reference / UTR Number (Optional):</b>
+            <small>Found in your UPI payment receipt (12-digit number)</small>
+          </label>
+          <div class="upi-utr-input-group">
+            <input id="upi-utr-input" type="text" placeholder="e.g. 432156789012" maxlength="30" inputmode="numeric">
+            <button type="button" id="upi-submit-utr-btn" class="upi-submit-utr-btn">Submit UTR</button>
+          </div>
+          <small id="upi-utr-feedback" class="upi-utr-feedback"></small>
         </div>
       </div>
 
