@@ -843,7 +843,7 @@ async function handleBooking(request, response) {
     });
 
     const upiId = (process.env.ACADEMY_UPI_ID || '9824751053-2@ybl').trim();
-    const upiName = (process.env.ACADEMY_UPI_NAME || 'viswanathan s').trim();
+    const upiName = (process.env.ACADEMY_UPI_NAME || 'Viswanathan S').trim();
     const upiNote = `RSA Court Booking - ${booking.playerName}`;
     const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${booking.feeINR}&cu=INR&tn=${encodeURIComponent(upiNote)}`;
     let upiQrDataUrl = '';
@@ -1058,7 +1058,7 @@ const server = http.createServer(async (request, response) => {
     }
     if (pathname === '/api/upi/config' && request.method === 'GET') {
       const upiId = (process.env.ACADEMY_UPI_ID || '9824751053-2@ybl').trim();
-      const upiName = (process.env.ACADEMY_UPI_NAME || 'viswanathan s').trim();
+      const upiName = (process.env.ACADEMY_UPI_NAME || 'Viswanathan S').trim();
       return sendJson(response, 200, { ok: true, upiId, upiName });
     }
     if (pathname === '/api/bookings') return await handleBooking(request, response);

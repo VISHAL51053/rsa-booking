@@ -41,10 +41,12 @@ const formTotalFee = document.querySelector('#form-total-fee');
 const formUpiQr = document.querySelector('#form-upi-qr');
 const formUpiMobileLink = document.querySelector('#form-upi-mobile-link');
 const formPaymentUtr = document.querySelector('#form-payment-utr');
+const formUpiIdText = document.querySelector('#form-upi-id-text');
+const formUpiNameText = document.querySelector('#form-upi-name-text');
 
 let upiConfig = {
   id: '9824751053-2@ybl',
-  name: 'viswanathan s',
+  name: 'Viswanathan S',
 };
 
 async function loadUpiConfig() {
@@ -56,6 +58,8 @@ async function loadUpiConfig() {
       upiConfig.name = data.upiName || upiConfig.name;
     }
   } catch {}
+  if (formUpiIdText) formUpiIdText.textContent = upiConfig.id;
+  if (formUpiNameText) formUpiNameText.textContent = upiConfig.name;
   updateUpfrontUpi();
 }
 
@@ -153,8 +157,8 @@ function showBookingSuccess(bookingData, whatsappData, upiData) {
   if (modalSummaryFee) modalSummaryFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(bookingData.feeINR)}`;
 
   // Populate UPI details
-  const upiId = upiData?.id || '9824751053-2@ybl';
-  const upiName = upiData?.name || 'viswanathan s';
+  const upiId = upiData?.id || upiConfig.id || '9824751053-2@ybl';
+  const upiName = upiData?.name || upiConfig.name || 'Viswanathan S';
   const upiLink = upiData?.link || `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${bookingData.feeINR}&cu=INR&tn=${encodeURIComponent(`RSA Court Booking - ${bookingData.playerName}`)}`;
 
   if (upiVpaText) upiVpaText.textContent = upiId;
