@@ -156,42 +156,69 @@
 }
 
 .copy-upi-btn {
-  padding: 2px 8px;
+  padding: 4px 10px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 4px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+  color: #1e293b;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .copy-upi-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
+  background: #e2e8f0;
+  border-color: #64748b;
 }
 
-.upfront-mobile-pay-btn {
-  display: inline-flex;
+.upi-app-buttons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.app-direct-btn {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-  padding: 10px 14px;
+  padding: 9px 12px;
   border-radius: 6px;
-  background: #4f46e5;
-  color: #ffffff !important;
-  font-weight: 600;
   font-size: 12px;
+  font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
   transition: all 0.15s ease;
+  border: 1px solid transparent;
 }
 
-.upfront-mobile-pay-btn:hover {
-  background: #4338ca;
-  transform: translateY(-1px);
+.gpay-btn {
+  background: #ffffff;
+  color: #1f2937 !important;
+  border: 1.5px solid #d1d5db;
+}
+
+.gpay-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.phonepe-btn {
+  background: #5f259f;
+  color: #ffffff !important;
+}
+
+.phonepe-btn:hover {
+  background: #4d1d82;
+}
+
+.paytm-btn {
+  background: #00b9f5;
+  color: #ffffff !important;
+}
+
+.paytm-btn:hover {
+  background: #009ecd;
 }
 
 .upfront-utr-field {

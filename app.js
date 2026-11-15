@@ -44,6 +44,9 @@ const formPaymentUtr = document.querySelector('#form-payment-utr');
 const formUpiIdText = document.querySelector('#form-upi-id-text');
 const formUpiNameText = document.querySelector('#form-upi-name-text');
 const copyUpiIdBtn = document.querySelector('#copy-upi-id-btn');
+const payGpayBtn = document.querySelector('#pay-gpay-btn');
+const payPhonepeBtn = document.querySelector('#pay-phonepe-btn');
+const payPaytmBtn = document.querySelector('#pay-paytm-btn');
 
 let upiConfig = {
   id: '9824751053-2@ybl',
@@ -82,10 +85,13 @@ function updateUpfrontUpi() {
   const amount = count * 100;
   if (formTotalFee) formTotalFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
 
-  // Cleaner UPI standard format without strict punctuation in note
   const upiLink = `upi://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
+  const phonepeLink = `phonepe://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
+  const paytmLink = `paytmmp://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
 
-  if (formUpiMobileLink) formUpiMobileLink.href = upiLink;
+  if (payGpayBtn) payGpayBtn.href = upiLink;
+  if (payPhonepeBtn) payPhonepeBtn.href = phonepeLink;
+  if (payPaytmBtn) payPaytmBtn.href = paytmLink;
 
   if (formUpiQr) {
     const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
