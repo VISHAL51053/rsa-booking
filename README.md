@@ -5,7 +5,7 @@ The app uses one deployment with two routes:
 - `/` is the public player booking form. Players do not log in.
 - `/admin` is the private dashboard. It uses the configured username/password and is the only route that can read or download the workbook.
 
-When `DATABASE_URL` is configured, the Node server stores bookings in Supabase PostgreSQL. Without it, local development falls back to an Excel workbook at `BOOKINGS_WORKBOOK_PATH` (default `data/bookings.xlsx`). The workbook is not in the public static-file list. Admins can inspect bookings in the dashboard or download an `.xlsx` export after signing in.
+When `DATABASE_URL` is configured, the Node server stores bookings in PostgreSQL. Without it, bookings are stored in an Excel workbook at `BOOKINGS_WORKBOOK_PATH` (default `data/bookings.xlsx`). The workbook is not in the public static-file list. Admins can inspect bookings in the dashboard or download an `.xlsx` export after signing in.
 
 ## Local setup
 
@@ -32,31 +32,141 @@ Player submissions are validated on the server before they are stored. The admin
 
 The admin dashboard shows booking totals and rows, supports search and date filters, exports CSV, and has a **Download Excel** action. Both booking reads and workbook downloads require an authenticated admin session.
 
-### Use Supabase storage on Render Free
+### PostgreSQL storage (optional)
 
-Render's free filesystem is temporary and cannot attach a persistent disk. To keep bookings through redeploys without upgrading Render, use a Supabase PostgreSQL project:
+The VPS can store bookings in the local Excel workbook, or use PostgreSQL by setting `DATABASE_URL`. For PostgreSQL, create a database with a trusted provider (for example, AIC Cloud Managed Database or Supabase) and use its private connection string. The app creates its bookings table automatically on its first database request. Keep the connection string private, encode reserved characters in the password as required by the URL, and arrange regular database backups.
 
-1. Create a project in Supabase. In the project dashboard, click **Connect** and select **Session pooler**. Render runs this app as a persistent Node service; Supabase recommends Session pooler when a persistent backend needs IPv4 connectivity. Copy the URI Supabase provides rather than constructing the host or username yourself. Make sure the password is URL-encoded if it contains reserved URL characters.
-2. In Render, open the `rsa-booking` web service, then **Environment → Add Environment Variable**.
-3. Set key `DATABASE_URL` and value to the full Supabase Session pooler connection string. Keep it private. Do not use the Supabase `anon` key here.
-4. Save changes and wait for Render to redeploy. On the first database request, the app creates the `public.bookings` table automatically, enables Row Level Security, and revokes table access from Supabase's `anon` and `authenticated` API roles. Only the private server database connection can access booking rows.
-5. Submit a test booking, then sign in at `/admin` to confirm it appears. The admin **Download Excel** button exports the database rows as an `.xlsx` file.
+When `DATABASE_URL` is present, PostgreSQL is the source of truth and the local workbook is not used. Without it, bookings are written to `BOOKINGS_WORKBOOK_PATH` (default `data/bookings.xlsx`); back up this file regularly.
 
-When `DATABASE_URL` is present, PostgreSQL is the source of truth and the local workbook is not used. Without `DATABASE_URL`, local development falls back to `BOOKINGS_WORKBOOK_PATH`. Supabase free-tier quotas and inactivity/pause policies may apply; review its current plan limits and keep regular backups.
+## Deploy to an AIC Cloud VPS
 
-## Deploy
+The app serves its frontend, admin pages, and API from one Node.js service. Use `rsabookings.gurubaranbuilders.co.in` for all of them; the frontend calls same-origin `/api/...` endpoints, so separate frontend/backend subdomains are not needed.
 
-Deploy the Node app behind HTTPS. Keep `.env` or equivalent hosting environment settings private. Use the public homepage URL (`https://your-host/`) for the court QR code and give admins `https://your-host/admin`.
+### 1. Point a subdomain to the VPS
 
-For Render Free, configure `DATABASE_URL` as described above. For a paid Render service with a persistent disk, you can instead set `BOOKINGS_WORKBOOK_PATH` to the mounted disk path. Never rely on the default ephemeral filesystem for live bookings. Run a single server instance unless you use a shared session store and coordinated storage.
+In Domain India DNS management, create an **A** record for the chosen subdomain:
 
-The repository includes `render.yaml` for a free Node web service and prompts for private `ADMIN_PASSWORD` and `DATABASE_URL` values during initial Blueprint creation. It does not attach a paid disk; Supabase is the persistent store. If syncing it to an existing service, confirm the service name matches to avoid creating a duplicate. Render only prompts for `sync: false` secrets during the initial Blueprint creation; add or change secrets manually in the existing service's Environment settings.
+- Host/name: `rsabookings`
+- Points to: your AIC Cloud VPS public IPv4 address (the screenshot shows `148.113.9.217`)
+- TTL: leave the default
 
-The included anonymous booking form has server validation, a hidden bot trap, and basic rate limiting. Add hosting-level WAF or CAPTCHA controls if abuse becomes an issue.
+Do not change existing records such as `accounts.gurubaranbuilders.co.in` or email/MX records. In AIC Cloud's VPS **Add Domain** panel, add `rsabookings.gurubaranbuilders.co.in` if the panel requires domain registration; route it to port 80, where Nginx will listen. Do not expose the app's Node port publicly.
 
-## Keep-alive automation (Prevent Render cold start)
+### 2. Install Node.js and Nginx
 
-Render Free sleeps after 15 minutes of inactivity. To ensure instant page loads without the 30–40 second cold start delay, an automated GitHub Actions workflow [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml) runs every 10 minutes in the background, continuously pinging the `/health` endpoint to keep the web service awake 24/7.
+SSH into the Ubuntu 24.04 VPS using the SSH address and port shown in AIC Cloud. For this VPS, the screenshot shows port `20062`; substitute your actual SSH username if it differs:
+
+```sh
+ssh -p 20062 <username>@148.113.9.217
+```
+
+Install the required packages and confirm Node.js meets the repository requirement (`>=18.17`):
+
+```sh
+sudo apt update
+sudo apt install -y git nodejs npm nginx
+node --version
+npm --version
+```
+
+If `node --version` is older than `v18.17`, install a current Node.js LTS release before continuing.
+
+### 3. Install and configure the app
+
+Clone your Git repository to the VPS (replace the URL with your repository URL):
+
+```sh
+sudo git clone <your-repository-url> /opt/rsa-booking
+cd /opt/rsa-booking
+sudo npm ci
+sudo useradd --system --user-group --home-dir /opt/rsa-booking --shell /usr/sbin/nologin rsa-booking
+sudo mkdir -p /var/lib/rsa-booking
+sudo chown -R rsa-booking:rsa-booking /opt/rsa-booking /var/lib/rsa-booking
+```
+
+Create `/etc/rsa-booking.env` with private settings:
+
+```ini
+PORT=3000
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=replace-with-a-unique-long-password
+BOOKINGS_WORKBOOK_PATH=/var/lib/rsa-booking/bookings.xlsx
+# Optional: set this to a private PostgreSQL connection string for database storage
+# DATABASE_URL=postgresql://...
+```
+
+For example, open the file with `sudo nano /etc/rsa-booking.env`, paste the settings, replace the example password, then save and exit.
+
+Protect this file and ensure the service user can read it:
+
+```sh
+sudo chown root:rsa-booking /etc/rsa-booking.env
+sudo chmod 640 /etc/rsa-booking.env
+```
+
+Create `/etc/systemd/system/rsa-booking.service` by running `sudo nano /etc/systemd/system/rsa-booking.service`, then add:
+
+```ini
+[Unit]
+Description=Rainbow Sports Academy booking app
+After=network.target
+
+[Service]
+Type=simple
+User=rsa-booking
+Group=rsa-booking
+WorkingDirectory=/opt/rsa-booking
+EnvironmentFile=/etc/rsa-booking.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service and verify it locally:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now rsa-booking
+sudo systemctl status rsa-booking
+curl http://127.0.0.1:3000/health
+```
+
+### 4. Configure Nginx and HTTPS
+
+Create `/etc/nginx/sites-available/rsa-booking`:
+
+```nginx
+server {
+    listen 80;
+    server_name rsabookings.gurubaranbuilders.co.in;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable the Nginx site:
+
+```sh
+sudo ln -s /etc/nginx/sites-available/rsa-booking /etc/nginx/sites-enabled/rsa-booking
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+In AIC Cloud, verify `rsabookings.gurubaranbuilders.co.in` in the VPS custom-domain section. AIC Cloud handles public HTTPS and forwards requests to Nginx on port 80 inside the VPS, so no firewall rule or Certbot certificate is needed for ports 80/443. Keep the Node.js port 3000 private; the app already listens on localhost.
+
+Once AIC shows the domain as **Live — HTTPS**, open `https://rsabookings.gurubaranbuilders.co.in/` for players and `https://rsabookings.gurubaranbuilders.co.in/admin` for admins. Use the HTTPS homepage URL for the booking QR code. Check service logs with `sudo journalctl -u rsa-booking -f`. Back up `/var/lib/rsa-booking/bookings.xlsx` regularly if using Excel storage; use PostgreSQL and database backups if you prefer database storage.
+
+The included anonymous booking form has server validation, a hidden bot trap, and basic rate limiting. Add hosting-level WAF or CAPTCHA controls if abuse becomes an issue. Run a single app instance unless you use a shared session store and coordinated storage.
 
 ## Session pricing
 

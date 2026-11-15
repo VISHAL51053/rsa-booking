@@ -262,7 +262,7 @@ async function initializeAdmin() {
           notice.innerHTML = '<span>🔒 <strong>Data Safe & Permanent</strong>: Stored in PostgreSQL database. Bookings are preserved across all redeploys.</span>';
         } else {
           notice.className = 'storage-notice is-warning';
-          notice.innerHTML = '<span>⚠️ <strong>Storage Warning</strong>: Running on temporary Render disk. Add <code>DATABASE_URL</code> to Render Environment Variables so bookings are never erased on redeploy.</span>';
+          notice.innerHTML = '<span>⚠️ <strong>Local file storage</strong>: Bookings are stored in an Excel workbook on this server. Back up the workbook regularly, or configure PostgreSQL using <code>DATABASE_URL</code>.</span>';
         }
       }
 

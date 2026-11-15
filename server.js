@@ -939,7 +939,7 @@ const server = http.createServer(async (request, response) => {
   const { pathname } = requestUrl;
 
   try {
-    if (pathname === '/health' || pathname === '/ping') {
+    if (pathname === '/health') {
       response.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
       return response.end('OK');
     }
@@ -955,25 +955,10 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, '127.0.0.1', () => {
   console.log(`Rainbow Sports Academy booking app listening on port ${port}`);
   console.log(databasePool ? 'Booking storage: Supabase/PostgreSQL' : `Local Excel bookings are stored at ${workbookPath}`);
   if (!loginConfigured) console.warn('Admin login is not configured; set ADMIN_PASSWORD to a private password of at least 12 characters.');
-
-  // Keep-alive self-ping: Ping /health every 8 minutes to prevent Render's 15-minute inactivity idle sleep
-  const serviceUrl = process.env.RENDER_EXTERNAL_URL || 'https://rsa-booking.onrender.com';
-  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
-    const pingIntervalMs = 8 * 60 * 1000;
-    setInterval(async () => {
-      try {
-        const pingUrl = `${serviceUrl}/health`;
-        const res = await fetch(pingUrl, { signal: AbortSignal.timeout(20000) });
-        console.log(`Keep-alive self-ping sent to ${pingUrl} (status ${res.status})`);
-      } catch (err) {
-        console.warn('Keep-alive self-ping notice:', err.message);
-      }
-    }, pingIntervalMs).unref();
-  }
 });
 
 process.on('SIGTERM', () => {
