@@ -43,11 +43,25 @@ const formUpiMobileLink = document.querySelector('#form-upi-mobile-link');
 const formPaymentUtr = document.querySelector('#form-payment-utr');
 const formUpiIdText = document.querySelector('#form-upi-id-text');
 const formUpiNameText = document.querySelector('#form-upi-name-text');
+const copyUpiIdBtn = document.querySelector('#copy-upi-id-btn');
 
 let upiConfig = {
   id: '9824751053-2@ybl',
-  name: 'Viswanathan S',
+  name: 'VISWANATHAN S',
 };
+
+if (copyUpiIdBtn) {
+  copyUpiIdBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(upiConfig.id);
+      copyUpiIdBtn.textContent = 'Copied! ✓';
+      showToast('UPI ID copied to clipboard.');
+      setTimeout(() => { copyUpiIdBtn.textContent = 'Copy'; }, 2000);
+    } catch {
+      showToast('Select and copy: ' + upiConfig.id);
+    }
+  });
+}
 
 async function loadUpiConfig() {
   try {
@@ -68,8 +82,8 @@ function updateUpfrontUpi() {
   const amount = count * 100;
   if (formTotalFee) formTotalFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
 
-  const note = `RSA Court Booking (${count} Players)`;
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
+  // Cleaner UPI standard format without strict punctuation in note
+  const upiLink = `upi://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
 
   if (formUpiMobileLink) formUpiMobileLink.href = upiLink;
 
@@ -158,7 +172,7 @@ function showBookingSuccess(bookingData, whatsappData, upiData) {
 
   // Populate UPI details
   const upiId = upiData?.id || upiConfig.id || '9824751053-2@ybl';
-  const upiName = upiData?.name || upiConfig.name || 'Viswanathan S';
+  const upiName = upiData?.name || upiConfig.name || 'VISWANATHAN S';
   const upiLink = upiData?.link || `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${bookingData.feeINR}&cu=INR&tn=${encodeURIComponent(`RSA Court Booking - ${bookingData.playerName}`)}`;
 
   if (upiVpaText) upiVpaText.textContent = upiId;
