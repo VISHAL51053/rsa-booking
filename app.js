@@ -29,77 +29,6 @@ const copyBtnText = document.querySelector('#copy-btn-text');
 const modalWaBtn = document.querySelector('#modal-whatsapp-btn');
 const modalAcademyWaBtn = document.querySelector('#modal-academy-wa-btn');
 
-const upiQrImage = document.querySelector('#upi-qr-image');
-const upiVpaText = document.querySelector('#upi-vpa-text');
-const upiPayeeName = document.querySelector('#upi-payee-name');
-const upiDirectPayBtn = document.querySelector('#upi-direct-pay-btn');
-const upiUtrInput = document.querySelector('#upi-utr-input');
-const upiSubmitUtrBtn = document.querySelector('#upi-submit-utr-btn');
-const upiUtrFeedback = document.querySelector('#upi-utr-feedback');
-
-const formTotalFee = document.querySelector('#form-total-fee');
-const formUpiQr = document.querySelector('#form-upi-qr');
-const formUpiMobileLink = document.querySelector('#form-upi-mobile-link');
-const formPaymentUtr = document.querySelector('#form-payment-utr');
-const formUpiIdText = document.querySelector('#form-upi-id-text');
-const formUpiNameText = document.querySelector('#form-upi-name-text');
-const copyUpiIdBtn = document.querySelector('#copy-upi-id-btn');
-const payGpayBtn = document.querySelector('#pay-gpay-btn');
-const payPhonepeBtn = document.querySelector('#pay-phonepe-btn');
-const payPaytmBtn = document.querySelector('#pay-paytm-btn');
-
-let upiConfig = {
-  id: '9824751053-2@ybl',
-  name: 'VISWANATHAN S',
-};
-
-if (copyUpiIdBtn) {
-  copyUpiIdBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(upiConfig.id);
-      copyUpiIdBtn.textContent = 'Copied! ✓';
-      showToast('UPI ID copied to clipboard.');
-      setTimeout(() => { copyUpiIdBtn.textContent = 'Copy'; }, 2000);
-    } catch {
-      showToast('Select and copy: ' + upiConfig.id);
-    }
-  });
-}
-
-async function loadUpiConfig() {
-  try {
-    const res = await fetch('/api/upi/config');
-    const data = await res.json();
-    if (data.ok && data.upiId) {
-      upiConfig.id = data.upiId;
-      upiConfig.name = data.upiName || upiConfig.name;
-    }
-  } catch {}
-  if (formUpiIdText) formUpiIdText.textContent = upiConfig.id;
-  if (formUpiNameText) formUpiNameText.textContent = upiConfig.name;
-  updateUpfrontUpi();
-}
-
-function updateUpfrontUpi() {
-  const count = Number(playersInput?.value) || 2;
-  const amount = count * 100;
-  if (formTotalFee) formTotalFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
-
-  const upiLink = `upi://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
-  const phonepeLink = `phonepe://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
-  const paytmLink = `paytmmp://pay?pa=${encodeURIComponent(upiConfig.id)}&pn=${encodeURIComponent(upiConfig.name)}&am=${amount}&cu=INR`;
-
-  if (payGpayBtn) payGpayBtn.href = upiLink;
-  if (payPhonepeBtn) payPhonepeBtn.href = phonepeLink;
-  if (payPaytmBtn) payPaytmBtn.href = paytmLink;
-
-  if (formUpiQr) {
-    formUpiQr.src = '/phonepe-qr.png';
-  }
-}
-
-loadUpiConfig();
-
 function formatDisplayDate(dateStr) {
   try {
     const [y, m, d] = String(dateStr).slice(0, 10).split('-').map(Number);
@@ -144,9 +73,8 @@ function formatAdminWhatsAppMessage(booking) {
     `🏟️ *Court:* ${booking.court}\n` +
     `👥 *Number of Players:* ${playersText}\n` +
     `💰 *Total Amount:* ₹${formattedFee} (₹100/player)\n` +
-    `💬 *Payment Mode:* WhatsApp Pay / UPI in Chat\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `I would like to confirm my booking slot and complete payment via WhatsApp. Thank you!\n` +
+    `confirmation of booking slot. Thank you!\n` +
     `— Sent by *${booking.playerName}*`;
 }
 
@@ -158,11 +86,8 @@ function closeModal() {
   }, 250);
 }
 
-function showBookingSuccess(bookingData, whatsappData, upiData) {
+function showBookingSuccess(bookingData, whatsappData) {
   if (!bookingModal) return;
-  activeBookingData = bookingData;
-  activeWhatsappData = whatsappData;
-
   const messageText = whatsappData?.adminMessage || whatsappData?.message || formatAdminWhatsAppMessage(bookingData);
   const academyTarget = whatsappData?.academyLink || whatsappData?.link || `https://wa.me/919842751053?text=${encodeURIComponent(messageText)}`;
 
@@ -173,26 +98,6 @@ function showBookingSuccess(bookingData, whatsappData, upiData) {
   if (modalSummaryCourt) modalSummaryCourt.textContent = bookingData.court;
   if (modalSummaryPlayers) modalSummaryPlayers.textContent = `${bookingData.players} Player${bookingData.players > 1 ? 's' : ''}`;
   if (modalSummaryFee) modalSummaryFee.textContent = `₹${new Intl.NumberFormat('en-IN').format(bookingData.feeINR)}`;
-
-  // Populate UPI details
-  const upiId = upiData?.id || upiConfig.id || '9824751053-2@ybl';
-  const upiName = upiData?.name || upiConfig.name || 'VISWANATHAN S';
-  const upiLink = upiData?.link || `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${bookingData.feeINR}&cu=INR&tn=${encodeURIComponent(`RSA Court Booking - ${bookingData.playerName}`)}`;
-
-  if (upiVpaText) upiVpaText.textContent = upiId;
-  if (upiPayeeName) upiPayeeName.textContent = upiName;
-  if (upiQrImage) {
-    upiQrImage.src = '/phonepe-qr.png';
-    upiQrImage.hidden = false;
-  }
-  if (upiDirectPayBtn) {
-    upiDirectPayBtn.href = upiLink;
-  }
-  if (upiUtrInput) upiUtrInput.value = '';
-  if (upiUtrFeedback) {
-    upiUtrFeedback.textContent = '';
-    upiUtrFeedback.className = 'upi-utr-feedback';
-  }
 
   if (modalMessagePreview) {
     modalMessagePreview.textContent = messageText;
@@ -220,59 +125,6 @@ function showBookingSuccess(bookingData, whatsappData, upiData) {
       console.warn('Popup blocked by browser; user can click WhatsApp button in modal.', popupErr);
     }
   }
-}
-
-if (upiSubmitUtrBtn) {
-  upiSubmitUtrBtn.addEventListener('click', async () => {
-    const utrValue = upiUtrInput?.value?.trim();
-    if (!utrValue) {
-      if (upiUtrFeedback) {
-        upiUtrFeedback.textContent = 'Please enter your 12-digit UPI reference number.';
-        upiUtrFeedback.className = 'upi-utr-feedback is-error';
-      }
-      return;
-    }
-
-    if (activeBookingData) {
-      activeBookingData.paymentUtr = utrValue;
-      const updatedMsg = formatAdminWhatsAppMessage(activeBookingData);
-      if (modalMessagePreview) modalMessagePreview.textContent = updatedMsg;
-      const academyPhone = '919842751053';
-      const updatedLink = `https://wa.me/${academyPhone}?text=${encodeURIComponent(updatedMsg)}`;
-      if (modalWaBtn) modalWaBtn.href = updatedLink;
-      if (modalAcademyWaBtn) modalAcademyWaBtn.href = updatedLink;
-    }
-
-    upiSubmitUtrBtn.disabled = true;
-    upiSubmitUtrBtn.textContent = 'Saving…';
-
-    try {
-      if (activeBookingData?.id) {
-        await fetch('/api/admin/bookings/payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: activeBookingData.id,
-            paymentUtr: utrValue,
-            paymentStatus: 'Paid (UTR Submitted)',
-          }),
-        }).catch(() => {});
-      }
-      if (upiUtrFeedback) {
-        upiUtrFeedback.textContent = '✓ UTR saved! Click Send Details to Admin below to share receipt.';
-        upiUtrFeedback.className = 'upi-utr-feedback is-success';
-      }
-      showToast('UPI UTR number recorded.');
-    } catch {
-      if (upiUtrFeedback) {
-        upiUtrFeedback.textContent = '✓ UTR added to WhatsApp message.';
-        upiUtrFeedback.className = 'upi-utr-feedback is-success';
-      }
-    } finally {
-      upiSubmitUtrBtn.disabled = false;
-      upiSubmitUtrBtn.textContent = 'Saved ✓';
-    }
-  });
 }
 
 if (copyMessageBtn) {
@@ -380,7 +232,6 @@ form.addEventListener('submit', async (event) => {
     court: courtSelected,
     membership: 'One-day',
     players: Number(playersInput.value),
-    paymentUtr: formPaymentUtr?.value?.trim() || '',
     website: document.querySelector('#website')?.value || '',
   };
 
@@ -420,7 +271,7 @@ form.addEventListener('submit', async (event) => {
     playersInput.value = '2';
     showToast(`Booking received for ${bookingName}.`);
 
-    showBookingSuccess(bookingResult, waData, result.upi);
+    showBookingSuccess(bookingResult, waData);
   } catch (error) {
     showToast(error.message || 'Unable to send booking. Please try again.', true);
   } finally {
@@ -433,12 +284,10 @@ form.addEventListener('submit', async (event) => {
 document.querySelector('#decrease-players').addEventListener('click', () => {
   playersInput.value = String(Math.max(1, (Number(playersInput.value) || 1) - 1));
   setError(playersInput, errors.players, '');
-  updateUpfrontUpi();
 });
 document.querySelector('#increase-players').addEventListener('click', () => {
   playersInput.value = String(Math.min(20, (Number(playersInput.value) || 1) + 1));
   setError(playersInput, errors.players, '');
-  updateUpfrontUpi();
 });
 nameInput.addEventListener('input', () => setError(nameInput, errors.name, ''));
 mobileInput.addEventListener('input', () => setError(mobileInput, errors.mobile, ''));
@@ -447,14 +296,10 @@ dateInput.addEventListener('input', () => {
   if (timeInput.value) setError(timeInput, errors.time, '');
 });
 timeInput.addEventListener('input', () => setError(timeInput, errors.time, ''));
-playersInput.addEventListener('input', () => {
-  setError(playersInput, errors.players, '');
-  updateUpfrontUpi();
-});
+playersInput.addEventListener('input', () => setError(playersInput, errors.players, ''));
 playersInput.addEventListener('change', () => {
   const value = Number(playersInput.value);
   if (Number.isFinite(value)) playersInput.value = String(Math.min(20, Math.max(1, value)));
-  updateUpfrontUpi();
 });
 
 dateInput.min = todayString();
