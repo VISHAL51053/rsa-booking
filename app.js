@@ -94,8 +94,7 @@ function updateUpfrontUpi() {
   if (payPaytmBtn) payPaytmBtn.href = paytmLink;
 
   if (formUpiQr) {
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`;
-    formUpiQr.src = qrApiUrl;
+    formUpiQr.src = '/phonepe-qr.png';
   }
 }
 
@@ -183,8 +182,8 @@ function showBookingSuccess(bookingData, whatsappData, upiData) {
 
   if (upiVpaText) upiVpaText.textContent = upiId;
   if (upiPayeeName) upiPayeeName.textContent = upiName;
-  if (upiQrImage && upiData?.qrDataUrl) {
-    upiQrImage.src = upiData.qrDataUrl;
+  if (upiQrImage) {
+    upiQrImage.src = '/phonepe-qr.png';
     upiQrImage.hidden = false;
   }
   if (upiDirectPayBtn) {

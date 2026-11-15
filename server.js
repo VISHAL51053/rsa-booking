@@ -66,6 +66,7 @@ const publicFiles = new Map([
   ['/whatsapp.css', ['whatsapp.css', 'text/css; charset=utf-8']],
   ['/qr-code.png', ['qr-code.png', 'image/png']],
   ['/qr-code.svg', ['qr-code.svg', 'image/svg+xml']],
+  ['/phonepe-qr.png', ['phonepe-qr.png', 'image/png']],
 ]);
 const sessions = new Map();
 const requestsByAddress = new Map();
