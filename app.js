@@ -305,3 +305,50 @@ playersInput.addEventListener('change', () => {
 dateInput.min = todayString();
 dateInput.value = todayString();
 document.querySelector('#today-label').textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date());
+
+// Register Service Worker for PWA (Browser App Shortcut & Offline Support)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('RSA Service Worker registered successfully:', reg.scope);
+    }).catch((err) => {
+      console.warn('RSA Service Worker registration notice:', err);
+    });
+  });
+}
+
+// Browser "Install App" Shortcut Prompt Support
+let deferredPrompt = null;
+const pwaInstallBtn = document.querySelector('#pwa-install-btn');
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredPrompt = event;
+  if (pwaInstallBtn) {
+    pwaInstallBtn.hidden = false;
+  }
+});
+
+if (pwaInstallBtn) {
+  pwaInstallBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) {
+      showToast('To install: click your browser menu (⋮ or Share) and choose "Install App" or "Add to Home Screen".');
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('PWA installation prompt outcome:', outcome);
+    if (outcome === 'accepted') {
+      pwaInstallBtn.hidden = true;
+      showToast('App installed successfully!');
+    }
+    deferredPrompt = null;
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  if (pwaInstallBtn) {
+    pwaInstallBtn.hidden = true;
+  }
+  showToast('Rainbow Sports Academy is now installed as an app.');
+});

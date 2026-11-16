@@ -3,7 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f8f4">
+  <meta name="theme-color" content="#174a3a">
+  <meta name="description" content="Official court booking app for Rainbow Sports Academy. Reserve badminton courts quickly.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RSA Bookings">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <title>Rainbow Sports Academy | Bookings</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +30,16 @@
     </aside>
 
     <main id="top">
-      <header class="topbar"><div class="breadcrumb"><span>Rainbow Sports Academy</span><span class="slash">/</span><strong>Player booking</strong></div><div class="top-actions"><span class="open-indicator"><i></i>2 courts</span></div></header>
+      <header class="topbar">
+        <div class="breadcrumb"><span>Rainbow Sports Academy</span><span class="slash">/</span><strong>Player booking</strong></div>
+        <div class="top-actions">
+          <button type="button" id="pwa-install-btn" class="pwa-install-btn" hidden aria-label="Install app on device">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Install App</span>
+          </button>
+          <span class="open-indicator"><i></i>2 courts</span>
+        </div>
+      </header>
       <div class="page-content">
         <section class="page-heading" aria-labelledby="page-title"><div><p class="eyebrow"><i></i>RAINBOW SPORTS ACADEMY</p><h1 id="page-title">Make room to<br class="mobile-break"> play<span>.</span></h1><p class="subtitle">Choose your date, time and reserve a court.</p></div><div class="date-stamp"><span>TODAY</span><strong id="today-label"></strong></div></section>
 
