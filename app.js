@@ -212,6 +212,9 @@ function validate() {
     }
   }
   if (!Number.isInteger(playerCount) || playerCount < 1 || playerCount > 20) { setError(playersInput, errors.players, 'Choose between 1 and 20 players.'); valid = false; }
+  if (!valid) {
+    showToast('Please check the highlighted details above.', true);
+  }
   return valid;
 }
 
@@ -224,11 +227,12 @@ form.addEventListener('submit', async (event) => {
 
   const button = form.querySelector('.submit-button');
   const courtSelected = form.querySelector('input[name="court"]:checked')?.value || 'Court 1';
+  const cleanTime = (timeInput.value || '').trim().slice(0, 5);
   const booking = {
     playerName: nameInput.value.trim(),
     mobileNumber: mobileInput.value.trim(),
     playDate: dateInput.value,
-    playTime: timeInput.value,
+    playTime: cleanTime,
     court: courtSelected,
     membership: 'One-day',
     players: Number(playersInput.value),

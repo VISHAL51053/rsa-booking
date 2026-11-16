@@ -127,11 +127,13 @@ function requireSameOrigin(request) {
   const origin = request.headers.origin;
   if (!origin) return true;
   try {
-    const originHost = new URL(origin).host.toLowerCase();
-    const hostHeader = (request.headers['x-forwarded-host'] || request.headers.host || '').toLowerCase();
-    return originHost === hostHeader;
+    const originHost = new URL(origin).host.toLowerCase().split(':')[0];
+    const forwardedHost = (request.headers['x-forwarded-host'] || '').split(',')[0].trim().split(':')[0].toLowerCase();
+    const rawHost = (request.headers.host || '').split(',')[0].trim().split(':')[0].toLowerCase();
+    const allowedHosts = [forwardedHost, rawHost, 'rsabookings.gurubaranbuilders.co.in', 'localhost', '127.0.0.1'].filter(Boolean);
+    return allowedHosts.includes(originHost);
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -836,7 +838,14 @@ async function handleBooking(request, response) {
     response.setHeader('allow', 'POST');
     return sendJson(response, 405, { error: 'Method not allowed.' });
   }
-  if (!requireSameOrigin(request)) return sendJson(response, 403, { error: 'Request not allowed.' });
+  if (!requireSameOrigin(request)) {
+    console.warn('Booking rejected by requireSameOrigin:', {
+      origin: request.headers.origin,
+      host: request.headers.host,
+      forwardedHost: request.headers['x-forwarded-host'],
+    });
+    return sendJson(response, 403, { error: 'Request not allowed.' });
+  }
 
   const address = getClientIp(request);
   if (!allowedByRateLimit(address)) return sendJson(response, 429, { error: 'Too many attempts. Please wait a minute and try again.' });
@@ -848,12 +857,17 @@ async function handleBooking(request, response) {
     return sendJson(response, 400, { error: 'Invalid booking request.' });
   }
 
-  if (payload.website) return sendJson(response, 202, { ok: true });
+  console.log(`[BOOKING INCOMING] From ${address}:`, JSON.stringify(payload));
+
   const booking = validateBooking(payload);
-  if (!booking) return sendJson(response, 400, { error: 'Check the booking details and try again.' });
+  if (!booking) {
+    console.warn(`[BOOKING INVALID] From ${address}:`, JSON.stringify(payload));
+    return sendJson(response, 400, { error: 'Check the booking details and try again.' });
+  }
 
   try {
     await appendBooking(booking);
+    console.log(`[BOOKING SAVED] Player: "${booking.playerName}", Date: ${booking.playDate}, Time: ${booking.playTime}`);
 
     const adminMessage = generateAdminBookingMessage(booking);
     const playerMessage = generatePlayerConfirmationMessage(booking);
