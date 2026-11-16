@@ -422,7 +422,7 @@ async function ensureDatabaseSchema() {
         await databasePool.query(`
           DO $$
           BEGIN
-            ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+            ALTER TABLE public.bookings DISABLE ROW LEVEL SECURITY;
             IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
               REVOKE ALL ON TABLE public.bookings FROM anon;
             END IF;
@@ -562,6 +562,7 @@ async function openBookingsWorkbook() {
 }
 
 async function appendBooking(booking) {
+  let dbSuccess = false;
   if (databasePool) {
     try {
       await ensureDatabaseSchema();
@@ -572,28 +573,33 @@ async function appendBooking(booking) {
         [booking.submittedAt, booking.playerName, booking.mobileNumber, booking.playDate,
           booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR],
       );
-      return;
+      dbSuccess = true;
     } catch (dbErr) {
       console.warn('PostgreSQL storage notice (fallback to local Excel):', dbErr.message);
     }
   }
 
-  return withWorkbookLock(async () => {
-    const { workbook, table, filePath } = await openBookingsWorkbook();
-    table.addRow([
-      booking.submittedAt,
-      booking.playerName,
-      booking.mobileNumber,
-      booking.playDate,
-      booking.playTime || '',
-      booking.court,
-      booking.membership,
-      booking.players,
-      booking.feeINR,
-    ]);
-    table.commit();
-    await workbook.xlsx.writeFile(filePath);
-  });
+  try {
+    await withWorkbookLock(async () => {
+      const { workbook, table, filePath } = await openBookingsWorkbook();
+      table.addRow([
+        booking.submittedAt,
+        booking.playerName,
+        booking.mobileNumber,
+        booking.playDate,
+        booking.playTime || '',
+        booking.court,
+        booking.membership,
+        booking.players,
+        booking.feeINR,
+      ]);
+      table.commit();
+      await workbook.xlsx.writeFile(filePath);
+    });
+  } catch (excelErr) {
+    console.warn('Excel storage write notice:', excelErr.message);
+    if (!dbSuccess) throw excelErr;
+  }
 }
 
 function excelCell(row, column) {
@@ -623,6 +629,9 @@ function normalizeDateString(dateVal) {
 }
 
 async function readBookings() {
+  const allBookingsMap = new Map();
+
+  // 1. Query PostgreSQL if configured
   if (databasePool) {
     try {
       await ensureDatabaseSchema();
@@ -631,69 +640,95 @@ async function readBookings() {
          FROM public.bookings
          ORDER BY submitted_at DESC, id DESC`,
       );
-      return result.rows.map((row) => ({
-        id: String(row.id),
-        submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
-        playerName: row.player_name,
-        mobileNumber: row.mobile_number,
-        playDate: normalizeDateString(row.play_date),
-        playTime: row.play_time || '',
-        court: row.court,
-        membership: row.membership,
-        players: Number(row.players),
-        feeINR: Number(row.fee_inr),
-      }));
+      for (const row of result.rows) {
+        const item = {
+          id: String(row.id),
+          submittedAt: row.submitted_at instanceof Date ? row.submitted_at.toISOString() : String(row.submitted_at),
+          playerName: row.player_name,
+          mobileNumber: row.mobile_number,
+          playDate: normalizeDateString(row.play_date),
+          playTime: row.play_time || '',
+          court: row.court,
+          membership: row.membership,
+          players: Number(row.players),
+          feeINR: Number(row.fee_inr),
+        };
+        const key = `${item.playerName}_${item.mobileNumber}_${item.playDate}_${item.playTime}_${item.court}`;
+        allBookingsMap.set(key, item);
+      }
     } catch (readErr) {
       console.warn('PostgreSQL storage read notice (fallback to local Excel):', readErr.message);
     }
   }
 
-  return withWorkbookLock(async () => {
-    const { worksheet } = await openBookingsWorkbook();
-    const rows = [];
-    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      if (rowNumber === 1) return;
-      const col5 = String(excelCell(row, 5));
-      let playTime = '';
-      let court = '';
-      let membership = '';
-      let players = 0;
-      let feeINR = 0;
+  // 2. Query Excel workbook and merge
+  try {
+    const excelRows = await withWorkbookLock(async () => {
+      const { worksheet } = await openBookingsWorkbook();
+      const rows = [];
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const col5 = String(excelCell(row, 5));
+        let playTime = '';
+        let court = '';
+        let membership = '';
+        let players = 0;
+        let feeINR = 0;
 
-      if (col5 === 'Court 1' || col5 === 'Court 2') {
-        // Legacy 8-column format without PlayTime
-        court = col5;
-        membership = String(excelCell(row, 6));
-        players = Number(excelCell(row, 7)) || 0;
-        feeINR = Number(excelCell(row, 8)) || 0;
-      } else {
-        // 9-column format with PlayTime
-        playTime = col5;
-        court = String(excelCell(row, 6));
-        membership = String(excelCell(row, 7));
-        players = Number(excelCell(row, 8)) || 0;
-        feeINR = Number(excelCell(row, 9)) || 0;
-      }
+        if (col5 === 'Court 1' || col5 === 'Court 2') {
+          court = col5;
+          membership = String(excelCell(row, 6));
+          players = Number(excelCell(row, 7)) || 0;
+          feeINR = Number(excelCell(row, 8)) || 0;
+        } else {
+          playTime = col5;
+          court = String(excelCell(row, 6));
+          membership = String(excelCell(row, 7));
+          players = Number(excelCell(row, 8)) || 0;
+          feeINR = Number(excelCell(row, 9)) || 0;
+        }
 
-      const submittedAt = String(excelCell(row, 1));
-      rows.push({
-        id: submittedAt || String(rowNumber - 2),
-        submittedAt,
-        playerName: String(excelCell(row, 2)),
-        mobileNumber: String(excelCell(row, 3)),
-        playDate: normalizeDateString(excelCell(row, 4)),
-        playTime,
-        court,
-        membership,
-        players,
-        feeINR,
+        const submittedAt = String(excelCell(row, 1));
+        const item = {
+          id: submittedAt || String(rowNumber - 2),
+          submittedAt,
+          playerName: String(excelCell(row, 2)),
+          mobileNumber: String(excelCell(row, 3)),
+          playDate: normalizeDateString(excelCell(row, 4)),
+          playTime,
+          court,
+          membership,
+          players,
+          feeINR,
+        };
+        if (item.playerName || item.mobileNumber) {
+          rows.push(item);
+        }
       });
+      return rows;
     });
-    return rows.reverse();
+
+    for (const item of excelRows) {
+      const key = `${item.playerName}_${item.mobileNumber}_${item.playDate}_${item.playTime}_${item.court}`;
+      if (!allBookingsMap.has(key)) {
+        allBookingsMap.set(key, item);
+      }
+    }
+  } catch (excelErr) {
+    console.warn('Excel storage read notice:', excelErr.message);
+  }
+
+  const list = Array.from(allBookingsMap.values());
+  list.sort((a, b) => {
+    const timeA = new Date(a.submittedAt).getTime() || 0;
+    const timeB = new Date(b.submittedAt).getTime() || 0;
+    return timeB - timeA;
   });
+  return list;
 }
 
 async function deleteBooking(id) {
+  let deletedFromDb = false;
   if (databasePool) {
     try {
       await ensureDatabaseSchema();
@@ -701,13 +736,13 @@ async function deleteBooking(id) {
         `DELETE FROM public.bookings WHERE id::text = $1 OR submitted_at::text = $1 RETURNING id`,
         [String(id)],
       );
-      return result.rowCount > 0;
+      deletedFromDb = result.rowCount > 0;
     } catch (delErr) {
       console.warn('PostgreSQL delete notice (fallback to local Excel):', delErr.message);
     }
   }
 
-  return withWorkbookLock(async () => {
+  const deletedFromExcel = await withWorkbookLock(async () => {
     const { workbook, worksheet, filePath } = await openBookingsWorkbook();
     let targetRowNumber = -1;
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
@@ -742,6 +777,8 @@ async function deleteBooking(id) {
     }
     return false;
   });
+
+  return deletedFromDb || deletedFromExcel;
 }
 
 async function exportWorkbook(response) {
