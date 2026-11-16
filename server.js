@@ -481,38 +481,69 @@ async function openBookingsWorkbook() {
     await workbook.xlsx.readFile(filePath);
     worksheet = workbook.getWorksheet('Bookings') || workbook.addWorksheet('Bookings');
     table = worksheet.getTable('Bookings');
-    if (table && (!table.worksheet || !Array.isArray(table.table.rows) || !table.table.ref)) {
-      const existingRows = [];
-      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-        if (rowNumber < 2) return;
-        const values = workbookHeaders.map((_, index) => row.getCell(index + 1).value);
-        if (values.some((value) => value !== null && value !== undefined && value !== '')) existingRows.push(values);
-      });
-      worksheet.removeTable('Bookings');
-      table = worksheet.addTable({
-        name: 'Bookings',
-        ref: 'A1',
-        headerRow: true,
-        totalsRow: false,
-        style: { theme: 'TableStyleMedium4', showRowStripes: true },
-        columns: workbookHeaders.map((name) => ({ name })),
-        rows: existingRows,
-      });
-    }
   } else {
     worksheet = workbook.addWorksheet('Bookings');
   }
 
-  if (!table) {
+  const tableColumns = table?.table?.columns?.map((c) => c.name) || [];
+  const columnsMatch = Boolean(
+    table &&
+    table.worksheet &&
+    Array.isArray(table.table.rows) &&
+    table.table.ref &&
+    tableColumns.length === workbookHeaders.length &&
+    workbookHeaders.every((h, i) => tableColumns[i] === h)
+  );
+
+  if (!columnsMatch) {
     const existingRows = [];
-    if (worksheet.rowCount > 1) {
-      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-        if (rowNumber < 2) return;
-        const values = workbookHeaders.map((_, index) => row.getCell(index + 1).value);
-        if (values.some((value) => value !== null && value !== undefined && value !== '')) existingRows.push(values);
-      });
-    }
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const col5 = String(excelCell(row, 5));
+      let playTime = '';
+      let court = '';
+      let membership = '';
+      let players = 0;
+      let feeINR = 0;
+
+      if (col5 === 'Court 1' || col5 === 'Court 2') {
+        court = col5;
+        membership = String(excelCell(row, 6));
+        players = Number(excelCell(row, 7)) || 0;
+        feeINR = Number(excelCell(row, 8)) || 0;
+      } else {
+        playTime = col5;
+        court = String(excelCell(row, 6));
+        membership = String(excelCell(row, 7));
+        players = Number(excelCell(row, 8)) || 0;
+        feeINR = Number(excelCell(row, 9)) || 0;
+      }
+
+      const submittedAt = excelCell(row, 1);
+      const playerName = excelCell(row, 2);
+      const mobileNumber = excelCell(row, 3);
+      const playDate = excelCell(row, 4);
+
+      if (playerName || mobileNumber) {
+        existingRows.push([
+          submittedAt,
+          playerName,
+          mobileNumber,
+          playDate,
+          playTime,
+          court,
+          membership,
+          players,
+          feeINR,
+        ]);
+      }
+    });
+
     try { worksheet.removeTable('Bookings'); } catch {}
+    while (worksheet.rowCount > 0) {
+      worksheet.spliceRows(1, 1);
+    }
+
     table = worksheet.addTable({
       name: 'Bookings',
       ref: 'A1',
@@ -568,7 +599,10 @@ async function appendBooking(booking) {
 function excelCell(row, column) {
   const value = row.getCell(column).value;
   if (value instanceof Date) return value.toISOString();
-  if (value && typeof value === 'object' && 'text' in value) return String(value.text);
+  if (value && typeof value === 'object') {
+    if ('text' in value) return String(value.text);
+    if ('result' in value) return value.result ?? '';
+  }
   return value ?? '';
 }
 
@@ -647,7 +681,7 @@ async function readBookings() {
         submittedAt,
         playerName: String(excelCell(row, 2)),
         mobileNumber: String(excelCell(row, 3)),
-        playDate: String(excelCell(row, 4)).slice(0, 10),
+        playDate: normalizeDateString(excelCell(row, 4)),
         playTime,
         court,
         membership,
@@ -661,12 +695,16 @@ async function readBookings() {
 
 async function deleteBooking(id) {
   if (databasePool) {
-    await ensureDatabaseSchema();
-    const result = await databasePool.query(
-      `DELETE FROM public.bookings WHERE id::text = $1 OR submitted_at::text = $1 RETURNING id`,
-      [String(id)],
-    );
-    return result.rowCount > 0;
+    try {
+      await ensureDatabaseSchema();
+      const result = await databasePool.query(
+        `DELETE FROM public.bookings WHERE id::text = $1 OR submitted_at::text = $1 RETURNING id`,
+        [String(id)],
+      );
+      return result.rowCount > 0;
+    } catch (delErr) {
+      console.warn('PostgreSQL delete notice (fallback to local Excel):', delErr.message);
+    }
   }
 
   return withWorkbookLock(async () => {
@@ -709,21 +747,27 @@ async function deleteBooking(id) {
 async function exportWorkbook(response) {
   let buffer;
   if (databasePool) {
-    const rows = await readBookings();
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Bookings');
-    worksheet.addTable({
-      name: 'Bookings',
-      ref: 'A1',
-      headerRow: true,
-      totalsRow: false,
-      style: { theme: 'TableStyleMedium4', showRowStripes: true },
-      columns: workbookHeaders.map((name) => ({ name })),
-      rows: rows.map((booking) => [booking.submittedAt, booking.playerName, booking.mobileNumber,
-        booking.playDate, booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR]),
-    });
-    buffer = await workbook.xlsx.writeBuffer();
-  } else {
+    try {
+      const rows = await readBookings();
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Bookings');
+      worksheet.addTable({
+        name: 'Bookings',
+        ref: 'A1',
+        headerRow: true,
+        totalsRow: false,
+        style: { theme: 'TableStyleMedium4', showRowStripes: true },
+        columns: workbookHeaders.map((name) => ({ name })),
+        rows: rows.map((booking) => [booking.submittedAt, booking.playerName, booking.mobileNumber,
+          booking.playDate, booking.playTime || '', booking.court, booking.membership, booking.players, booking.feeINR]),
+      });
+      buffer = await workbook.xlsx.writeBuffer();
+    } catch (expErr) {
+      console.warn('PostgreSQL export notice (fallback to local Excel):', expErr.message);
+    }
+  }
+
+  if (!buffer) {
     buffer = await withWorkbookLock(async () => {
       const { workbook } = await openBookingsWorkbook();
       return workbook.xlsx.writeBuffer();
